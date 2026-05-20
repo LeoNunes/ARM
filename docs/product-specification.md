@@ -1,3 +1,5 @@
+claude --resume dd873664-229d-4342-a77e-f399bb02bc6a
+
 # Skills Manager — Product Specification
 
 > A locally-run application for managing AI-agent artifacts (skills, rules, and similar) across multiple source repositories and multiple working repositories, without polluting those working repositories' git history.
@@ -33,7 +35,7 @@ A single developer running on their own machine. Out of scope for MVP: multi-use
 
 ### 4.1 Registering sources
 
-- Add a skills repository by providing its local path or git URL, the branch to track (default `main`), and the path(s) where artifacts live inside it.
+- Add a skills repository by providing its **git URL**, the branch to track (default `main`), and **per-artifact-type path lists** (e.g., one list of paths where skills live, another for rules, and so on as artifact types are added).
 - The product ships **preset configurations** for well-known skills repositories so the user can register them in one click.
 - Edit, refresh (fetch latest), and remove registered skills repositories.
 
@@ -51,9 +53,10 @@ A single developer running on their own machine. Out of scope for MVP: multi-use
 ### 4.4 Installing
 
 - Install an artifact into a registered working repository. The user selects:
+  - The **target agent** for the install (pre-filled from the global **favorite agent** setting — see §4.10 — and overridable per install).
   - The **version** to install (default: latest).
   - Whether to enable **auto-update** for this install.
-- Install an artifact at the **user-global location** for an agent (rather than into a specific working repo).
+- Install an artifact at the **user-global location** for an agent (rather than into a specific working repo). The agent selector here is also pre-filled from the favorite-agent setting.
 - Installation copies the artifact's files into the target's agent-specific location (for example, the Claude Code skills directory inside the working repo, or the Cursor rules directory).
 - **Filename mapping** is applied where needed. MVP includes the case where files named `CLAUDE.md` become `AGENTS.md` when the target is Cursor.
 - For MVP, file content is copied **as-is** otherwise (no frontmatter or structural translation between agent formats).
@@ -108,11 +111,18 @@ The backend exposes a local Model Context Protocol server so AI agents can inter
 
 The MCP server is only available while the Skills Manager application is running.
 
+### 4.10 Application settings
+
+The product stores a small set of user-level settings that influence default behavior across the application.
+
+- **Favorite agent.** The user picks one of the supported agents (e.g., Cursor or Claude Code) as their default. Any UI flow that needs an agent to be selected — installing into a working repo, installing globally, MCP install calls — pre-fills with this agent. The user can override the agent on any individual install.
+- Settings can be viewed and changed from a dedicated settings area in the UI.
+
 ## 5. Capabilities by surface
 
 ### 5.1 Backend supports
 
-- Storing and managing all state: registered skills repos, registered working repos, install records (including the source commit SHA for each install), dismissed notifications, per-install auto-update flags, presets.
+- Storing and managing all state: registered skills repos, registered working repos, install records (including the source commit SHA for each install), dismissed notifications, per-install auto-update flags, application settings (e.g., favorite agent), presets.
 - Performing all git operations against skills repositories (clone, fetch, commit walking, file lookup at a SHA) and computing per-artifact "last touched commit" SHAs.
 - Performing install, uninstall, update, and drift-check operations against working repositories.
 - Implementing the file-level "ignore in working repo" mechanism without touching tracked files in those repos.
@@ -122,11 +132,12 @@ The MCP server is only available while the Skills Manager application is running
 ### 5.2 Frontend supports
 
 - Browsing and searching artifacts.
-- Managing registered skills repositories: add by URL/local path or by preset, edit, refresh, remove.
+- Managing registered skills repositories: add by git URL or by preset, configure per-artifact-type paths, edit, refresh, remove.
 - Managing registered working repositories: add, edit, remove.
-- Installing, uninstalling, and updating artifacts to working repositories or to the user-global location; toggling auto-update per install.
+- Installing, uninstalling, and updating artifacts to working repositories or to the user-global location; toggling auto-update per install; choosing the target agent (pre-filled from the favorite-agent setting).
 - Viewing artifact version history and side-by-side diffs (version-to-version, installed-vs-latest, installed-vs-drifted).
 - Dashboard with status indicators and dismissible notifications.
+- Viewing and editing application settings (favorite agent, etc.).
 - Viewing MCP server status and the configuration snippet to paste into an agent's MCP configuration.
 
 ## 6. Non-functional requirements
