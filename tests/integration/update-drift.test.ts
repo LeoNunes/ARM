@@ -7,10 +7,14 @@ import { discoverArtifacts } from "../../src/discovery/discover.ts";
 import { installArtifact } from "../../src/engine/install.ts";
 import { checkForUpdates } from "../../src/engine/update-check.ts";
 import { checkForDrift } from "../../src/engine/drift-check.ts";
+import { runAutoUpdatePass } from "../../src/engine/update-pass.ts";
 import { simpleGit } from "simple-git";
 import path from "node:path";
 import { writeFile, readFile } from "node:fs/promises";
 import { applyUpdate } from "../../src/engine/apply-update.ts";
+import { InstallsStore } from "../../src/state/installs.ts";
+import { SkillsRepoStore } from "../../src/state/skills-repos.ts";
+import { WorkingRepoStore } from "../../src/state/working-repos.ts";
 import type { SkillsRepo, WorkingRepo, Install } from "../../src/state/schema.ts";
 
 async function makeWorkingRepo(): Promise<WorkingRepo> {
@@ -233,5 +237,146 @@ describe("applyUpdate", () => {
     });
     expect(existsSync(path.join(wr.path, ".claude/skills/foo/old.md"))).toBe(false);
     expect(existsSync(path.join(wr.path, ".claude/skills/foo/SKILL.md"))).toBe(true);
+  });
+});
+
+describe("runAutoUpdatePass", () => {
+  it("auto-updates a non-drifted install and records new SHA", async () => {
+    const fx = await buildFixtureRepo([
+      { message: "v1", files: { "ai/skills/foo/SKILL.md": "# Foo\nv1\n" } },
+      { message: "v2", files: { "ai/skills/foo/SKILL.md": "# Foo\nv2\n" } },
+    ]);
+    const dest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fx.fileUrl, dest, "main");
+    const stateDir = await tmpDir("skillmgr-pass-");
+    const wr = await makeWorkingRepo();
+    const { agents, types } = buildRegistries();
+    const srData: SkillsRepo = {
+      id: "src1", name: "src", gitUrl: fx.fileUrl, branch: "main",
+      artifactPaths: { skills: ["ai/skills"] }, presetId: null,
+      localClonePath: dest, lastFetchedAt: null,
+    };
+    const srStore = new SkillsRepoStore(stateDir);
+    await srStore.add(srData);
+    const wrStore = new WorkingRepoStore(stateDir);
+    await wrStore.add({ name: wr.name, path: wr.path, addedAt: wr.addedAt });
+    const installsStore = new InstallsStore(stateDir);
+    const artifacts = await discoverArtifacts(srData, types);
+    const foo = artifacts.find((a) => a.name === "foo")!;
+    const draft = await installArtifact({
+      artifact: foo, skillsRepo: srData,
+      target: { type: "working-repo", workingRepoId: (await wrStore.list())[0]!.id },
+      workingRepo: (await wrStore.list())[0]!,
+      agent: agents.get("claude-code"),
+      sha: fx.shas[0]!,
+      autoUpdate: true,
+      existingInstallsInTarget: [],
+    });
+    const persisted = await installsStore.add(draft);
+
+    await runAutoUpdatePass({
+      installs: installsStore,
+      skillsRepos: srStore,
+      workingRepos: wrStore,
+      registries: { agents },
+    });
+
+    const updated = await installsStore.get(persisted.id);
+    expect(updated!.installedCommitSha).toBe(fx.shas[1]);
+    const content = await readFile(path.join(wr.path, ".claude/skills/foo/SKILL.md"), "utf8");
+    expect(content).toBe("# Foo\nv2\n");
+  });
+
+  it("skips auto-update when the install is drifted, leaving it update-available+drifted", async () => {
+    const fx = await buildFixtureRepo([
+      { message: "v1", files: { "ai/skills/foo/SKILL.md": "# Foo\nv1\n" } },
+      { message: "v2", files: { "ai/skills/foo/SKILL.md": "# Foo\nv2\n" } },
+    ]);
+    const dest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fx.fileUrl, dest, "main");
+    const stateDir = await tmpDir("skillmgr-pass-");
+    const wr = await makeWorkingRepo();
+    const { agents, types } = buildRegistries();
+    const srData: SkillsRepo = {
+      id: "src1", name: "src", gitUrl: fx.fileUrl, branch: "main",
+      artifactPaths: { skills: ["ai/skills"] }, presetId: null,
+      localClonePath: dest, lastFetchedAt: null,
+    };
+    const srStore = new SkillsRepoStore(stateDir);
+    await srStore.add(srData);
+    const wrStore = new WorkingRepoStore(stateDir);
+    await wrStore.add({ name: wr.name, path: wr.path, addedAt: wr.addedAt });
+    const installsStore = new InstallsStore(stateDir);
+    const artifacts = await discoverArtifacts(srData, types);
+    const foo = artifacts.find((a) => a.name === "foo")!;
+    const draft = await installArtifact({
+      artifact: foo, skillsRepo: srData,
+      target: { type: "working-repo", workingRepoId: (await wrStore.list())[0]!.id },
+      workingRepo: (await wrStore.list())[0]!,
+      agent: agents.get("claude-code"),
+      sha: fx.shas[0]!, autoUpdate: true,
+      existingInstallsInTarget: [],
+    });
+    const persisted = await installsStore.add(draft);
+
+    // Drift the working-repo file
+    await writeFile(path.join(wr.path, ".claude/skills/foo/SKILL.md"), "locally modified\n", "utf8");
+
+    await runAutoUpdatePass({
+      installs: installsStore,
+      skillsRepos: srStore,
+      workingRepos: wrStore,
+      registries: { agents },
+    });
+
+    // SHA should be unchanged — auto-update was gated
+    const after = await installsStore.get(persisted.id);
+    expect(after!.installedCommitSha).toBe(fx.shas[0]);
+    // Working-repo file should still be the drifted version
+    const content = await readFile(path.join(wr.path, ".claude/skills/foo/SKILL.md"), "utf8");
+    expect(content).toBe("locally modified\n");
+  });
+
+  it("skips installs with autoUpdate=false", async () => {
+    const fx = await buildFixtureRepo([
+      { message: "v1", files: { "ai/skills/foo/SKILL.md": "v1\n" } },
+      { message: "v2", files: { "ai/skills/foo/SKILL.md": "v2\n" } },
+    ]);
+    const dest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fx.fileUrl, dest, "main");
+    const stateDir = await tmpDir("skillmgr-pass-");
+    const wr = await makeWorkingRepo();
+    const { agents, types } = buildRegistries();
+    const srData: SkillsRepo = {
+      id: "src1", name: "src", gitUrl: fx.fileUrl, branch: "main",
+      artifactPaths: { skills: ["ai/skills"] }, presetId: null,
+      localClonePath: dest, lastFetchedAt: null,
+    };
+    const srStore = new SkillsRepoStore(stateDir);
+    await srStore.add(srData);
+    const wrStore = new WorkingRepoStore(stateDir);
+    await wrStore.add({ name: wr.name, path: wr.path, addedAt: wr.addedAt });
+    const installsStore = new InstallsStore(stateDir);
+    const artifacts = await discoverArtifacts(srData, types);
+    const foo = artifacts.find((a) => a.name === "foo")!;
+    const draft = await installArtifact({
+      artifact: foo, skillsRepo: srData,
+      target: { type: "working-repo", workingRepoId: (await wrStore.list())[0]!.id },
+      workingRepo: (await wrStore.list())[0]!,
+      agent: agents.get("claude-code"),
+      sha: fx.shas[0]!, autoUpdate: false,
+      existingInstallsInTarget: [],
+    });
+    const persisted = await installsStore.add(draft);
+
+    await runAutoUpdatePass({
+      installs: installsStore,
+      skillsRepos: srStore,
+      workingRepos: wrStore,
+      registries: { agents },
+    });
+
+    const after = await installsStore.get(persisted.id);
+    expect(after!.installedCommitSha).toBe(fx.shas[0]);
   });
 });
