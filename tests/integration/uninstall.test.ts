@@ -16,7 +16,9 @@ async function makeWorkingRepo(): Promise<WorkingRepo> {
   const dir = await tmpDir("skillmgr-wr-");
   const g = simpleGit(dir);
   await g.init();
-  await g.addConfig("user.email", "a@b").addConfig("user.name", "t");
+  await g.addConfig("user.email", "a@b");
+  await g.addConfig("user.name", "t");
+  await g.addConfig("commit.gpgsign", "false");
   await g.commit("seed", [], { "--allow-empty": null });
   return { id: "w1", name: "alpha", path: dir, addedAt: new Date().toISOString() };
 }
