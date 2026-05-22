@@ -7,6 +7,7 @@ import { InstallsStore } from "../../src/state/installs.ts";
 import { buildRegistries } from "../../src/adapters/index.ts";
 import { tmpDir } from "../helpers/tmp-dir.ts";
 import { buildFixtureRepo } from "../helpers/build-fixture-repo.ts";
+import { simpleGit } from "simple-git";
 
 async function makeDeps() {
   const stateDir = await tmpDir("skillmgr-api-");
@@ -71,5 +72,31 @@ describe("API /skills-repos", () => {
     expect(removed.statusCode).toBe(204);
     const list2 = await app.inject({ method: "GET", url: "/api/skills-repos" });
     expect(list2.json()).toHaveLength(0);
+  });
+});
+
+describe("API /working-repos", () => {
+  it("registers a working repo, refusing non-git paths", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    const wrPath = await tmpDir("skillmgr-wr-");
+    await simpleGit(wrPath).init();
+
+    const ok = await app.inject({
+      method: "POST", url: "/api/working-repos",
+      payload: { name: "alpha", path: wrPath },
+    });
+    expect(ok.statusCode).toBe(201);
+
+    const nonGit = await tmpDir("skillmgr-not-git-");
+    const bad = await app.inject({
+      method: "POST", url: "/api/working-repos",
+      payload: { name: "x", path: nonGit },
+    });
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json().code).toBe("bad_input");
+
+    const list = await app.inject({ method: "GET", url: "/api/working-repos" });
+    expect(list.json()).toHaveLength(1);
   });
 });
