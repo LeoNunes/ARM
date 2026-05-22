@@ -24,3 +24,24 @@ describe("JsonStore", () => {
     expect(await fresh.read()).toEqual({ count: 7 });
   });
 });
+
+import { SettingsStore } from "../../src/state/settings.ts";
+
+describe("SettingsStore", () => {
+  it("defaults favoriteAgent to claude-code and mcpPort to 7747", async () => {
+    const dir = await tmpDir();
+    const store = new SettingsStore(dir);
+    const s = await store.read();
+    expect(s.favoriteAgent).toBe("claude-code");
+    expect(s.mcpPort).toBe(7747);
+  });
+
+  it("persists updates", async () => {
+    const dir = await tmpDir();
+    const store = new SettingsStore(dir);
+    await store.update({ favoriteAgent: "cursor" });
+    const s = await new SettingsStore(dir).read();
+    expect(s.favoriteAgent).toBe("cursor");
+    expect(s.mcpPort).toBe(7747);
+  });
+});
