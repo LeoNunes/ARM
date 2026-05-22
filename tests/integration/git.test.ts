@@ -5,7 +5,7 @@ import { GitClient } from "../../src/git/client.ts";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { readFileAtSha } from "../../src/git/show.ts";
-import { lastSHATouching } from "../../src/git/log.ts";
+import { lastSHATouching, hasCommitsTouching } from "../../src/git/log.ts";
 
 describe("GitClient", () => {
   it("clones a fixture repo by file URL to a target dir", async () => {
@@ -64,5 +64,39 @@ describe("lastSHATouching", () => {
     expect(await lastSHATouching(dest, "main", ["a.md"])).toBe(fixture.shas[2]);
     expect(await lastSHATouching(dest, "main", ["b.md"])).toBe(fixture.shas[1]);
     expect(await lastSHATouching(dest, "main", ["a.md", "b.md"])).toBe(fixture.shas[2]);
+  });
+});
+
+describe("hasCommitsTouching", () => {
+  it("returns false when no commits after fromSha touch the paths", async () => {
+    const fixture = await buildFixtureRepo([
+      { message: "v1", files: { "skill/SKILL.md": "v1\n", "other.md": "o\n" } },
+      { message: "touch other only", files: { "other.md": "o2\n" } },
+    ]);
+    const dest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fixture.fileUrl, dest, "main");
+    const result = await hasCommitsTouching(dest, fixture.shas[0]!, "main", ["skill/SKILL.md"]);
+    expect(result).toBe(false);
+  });
+
+  it("returns true when a commit after fromSha touches the paths", async () => {
+    const fixture = await buildFixtureRepo([
+      { message: "v1", files: { "skill/SKILL.md": "v1\n" } },
+      { message: "v2", files: { "skill/SKILL.md": "v2\n" } },
+    ]);
+    const dest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fixture.fileUrl, dest, "main");
+    const result = await hasCommitsTouching(dest, fixture.shas[0]!, "main", ["skill/SKILL.md"]);
+    expect(result).toBe(true);
+  });
+
+  it("returns false when fromSha equals HEAD", async () => {
+    const fixture = await buildFixtureRepo([
+      { message: "v1", files: { "skill/SKILL.md": "v1\n" } },
+    ]);
+    const dest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fixture.fileUrl, dest, "main");
+    const result = await hasCommitsTouching(dest, fixture.shas[0]!, "main", ["skill/SKILL.md"]);
+    expect(result).toBe(false);
   });
 });
