@@ -121,3 +121,47 @@ describe("API /artifacts", () => {
     expect(names).toEqual(["bar", "foo"]);
   });
 });
+
+describe("API /installs", () => {
+  it("creates an install and lists it under the working repo", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    const fx = await buildFixtureRepo([
+      { message: "init", files: { "ai/skills/foo/SKILL.md": "# Foo\n" } },
+    ]);
+    const src = (await app.inject({
+      method: "POST", url: "/api/skills-repos",
+      payload: { name: "src", gitUrl: fx.fileUrl, branch: "main", artifactPaths: { skills: ["ai/skills"] } },
+    })).json();
+    const wrPath = await tmpDir("skillmgr-wr-");
+    await simpleGit(wrPath).init();
+    const wr = (await app.inject({
+      method: "POST", url: "/api/working-repos",
+      payload: { name: "w", path: wrPath },
+    })).json();
+
+    const arts = (await app.inject({ method: "GET", url: "/api/artifacts" })).json();
+    const foo = arts.find((a: { name: string }) => a.name === "foo");
+
+    const created = await app.inject({
+      method: "POST", url: "/api/installs",
+      payload: { artifactKey: foo.artifactKey, target: { type: "working-repo", workingRepoId: wr.id }, agent: "claude-code", autoUpdate: false },
+    });
+    expect(created.statusCode).toBe(201);
+
+    const list = await app.inject({ method: "GET", url: `/api/working-repos/${wr.id}/installs` });
+    expect(list.json()).toHaveLength(1);
+
+    const dup = await app.inject({
+      method: "POST", url: "/api/installs",
+      payload: { artifactKey: foo.artifactKey, target: { type: "working-repo", workingRepoId: wr.id }, agent: "claude-code", autoUpdate: false },
+    });
+    expect(dup.statusCode).toBe(409);
+    expect(dup.json().code).toBe("already_installed");
+
+    const del = await app.inject({ method: "DELETE", url: `/api/installs/${created.json().id}` });
+    expect(del.statusCode).toBe(204);
+    const list2 = await app.inject({ method: "GET", url: `/api/working-repos/${wr.id}/installs` });
+    expect(list2.json()).toHaveLength(0);
+  });
+});
