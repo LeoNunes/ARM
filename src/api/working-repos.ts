@@ -21,6 +21,10 @@ export async function registerWorkingReposRoutes(app: FastifyInstance, deps: Ser
   app.delete<{ Params: { id: string } }>("/api/working-repos/:id", async (req, reply) => {
     const r = await deps.workingRepos.get(req.params.id);
     if (!r) return reply.code(404).send({ code: "working_repo_not_found" });
+    const orphanedInstalls = await deps.installs.listByWorkingRepo(r.id);
+    for (const inst of orphanedInstalls) {
+      await deps.installs.remove(inst.id);
+    }
     await deps.workingRepos.remove(req.params.id);
     return reply.code(204).send();
   });

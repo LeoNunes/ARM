@@ -35,7 +35,14 @@ export function WorkingRepoDetail() {
                 <td>{i.agent}</td>
                 <td style={{ color: "var(--muted)" }}>{i.installedCommitSha.slice(0, 7)}</td>
                 <td>{i.autoUpdate ? "on" : "off"}</td>
-                <td><button className="btn secondary" onClick={async () => { await api.deleteInstall(i.id); reload(); }}>Uninstall</button></td>
+                <td><button className="btn secondary" onClick={async () => {
+                  try {
+                    await api.deleteInstall(i.id);
+                    reload();
+                  } catch (err) {
+                    alert((err as Error).message);
+                  }
+                }}>Uninstall</button></td>
               </tr>
             );
           })}

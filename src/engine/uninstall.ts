@@ -1,4 +1,4 @@
-import { rm } from "node:fs/promises";
+import { rm, rmdir } from "node:fs/promises";
 import path from "node:path";
 import { writeExcludeBlock } from './exclude-block';
 import { computeExcludePatterns } from './install';
@@ -21,7 +21,7 @@ export async function uninstallArtifact(args: UninstallArgs): Promise<void> {
   if (workingRepo) {
     const dirs = new Set(install.installedFiles.map((f) => path.dirname(path.join(workingRepo.path, f.targetPath))));
     for (const d of dirs) {
-      await rm(d, { force: true, recursive: true }).catch(() => {});
+      await rmdir(d).catch(() => {});
     }
     const excludePath = path.join(workingRepo.path, ".git", "info", "exclude");
     await writeExcludeBlock(excludePath, computeExcludePatterns(remainingInstallsInTarget));

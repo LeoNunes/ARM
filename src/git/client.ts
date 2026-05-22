@@ -7,6 +7,11 @@ export class GitClient {
   async fetch(repoPath: string): Promise<void> {
     await simpleGit(repoPath).fetch();
   }
+  async fetchAndReset(repoPath: string, branch: string): Promise<void> {
+    const g = simpleGit(repoPath);
+    await g.fetch();
+    await g.raw(["reset", "--hard", `origin/${branch}`]);
+  }
   async headSha(repoPath: string, ref = "HEAD"): Promise<string> {
     return (await simpleGit(repoPath).revparse([ref])).trim();
   }

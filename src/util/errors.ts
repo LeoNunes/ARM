@@ -1,5 +1,6 @@
 export type AppErrorCode =
   | "artifact_not_found"
+  | "install_not_found"
   | "working_repo_not_found"
   | "skills_repo_not_found"
   | "unsupported_combination"

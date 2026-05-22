@@ -6,12 +6,14 @@ export function SkillsRepoDetail() {
   const { id = "" } = useParams();
   const [repo, setRepo] = useState<SkillsRepo | null>(null);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.getSkillsRepo(id).then(setRepo);
-    api.listArtifacts({ sourceRepoId: id }).then(setArtifacts);
+    api.getSkillsRepo(id).then(setRepo).catch((e: Error) => setError(e.message));
+    api.listArtifacts({ sourceRepoId: id }).then(setArtifacts).catch(() => {});
   }, [id]);
 
+  if (error) return <p style={{ color: "red" }}>Error: {error}</p>;
   if (!repo) return <p>Loading…</p>;
 
   return (
@@ -24,9 +26,13 @@ export function SkillsRepoDetail() {
         <div><strong>Skills paths:</strong> {(repo.artifactPaths.skills ?? []).join(", ") || "(none)"}</div>
         <div style={{ color: "var(--muted)", marginTop: 6 }}>Last fetched: {repo.lastFetchedAt ?? "—"}</div>
         <button className="btn secondary" style={{ marginTop: 8 }} onClick={async () => {
-          const updated = await api.refreshSkillsRepo(repo.id);
-          setRepo(updated);
-          setArtifacts(await api.listArtifacts({ sourceRepoId: repo.id }));
+          try {
+            const updated = await api.refreshSkillsRepo(repo.id);
+            setRepo(updated);
+            setArtifacts(await api.listArtifacts({ sourceRepoId: repo.id }));
+          } catch (err) {
+            alert((err as Error).message);
+          }
         }}>Refresh</button>
       </div>
       <h3>Discovered artifacts</h3>

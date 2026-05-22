@@ -26,7 +26,12 @@ export async function registerInstallsRoutes(app: FastifyInstance, deps: ServerD
     if (!body.artifactKey || !body.target) throw new AppError("bad_input", "artifactKey and target required");
     const settings = await deps.settings.read();
     const agentId = body.agent ?? settings.favoriteAgent;
-    const agent = deps.registries.agents.get(agentId);
+    let agent;
+    try {
+      agent = deps.registries.agents.get(agentId);
+    } catch {
+      throw new AppError("bad_input", `unknown agent: ${agentId}`);
+    }
 
     const sources = await deps.skillsRepos.list();
     const [sourceRepoId] = body.artifactKey.split(":", 1);
@@ -64,15 +69,18 @@ export async function registerInstallsRoutes(app: FastifyInstance, deps: ServerD
 
   app.delete<{ Params: { id: string } }>("/api/installs/:id", async (req, reply) => {
     const install = await deps.installs.get(req.params.id);
-    if (!install) return reply.code(404).send({ code: "artifact_not_found" });
+    if (!install) return reply.code(404).send({ code: "install_not_found" });
     let workingRepo;
     let remaining: Awaited<ReturnType<typeof deps.installs.list>> = [];
     if (install.target.type === "working-repo") {
       workingRepo = await deps.workingRepos.get(install.target.workingRepoId);
       remaining = (await deps.installs.listByWorkingRepo(install.target.workingRepoId)).filter((i) => i.id !== install.id);
     }
-    await uninstallArtifact({ install, workingRepo, remainingInstallsInTarget: remaining });
-    await deps.installs.remove(install.id);
+    try {
+      await uninstallArtifact({ install, workingRepo, remainingInstallsInTarget: remaining });
+    } finally {
+      await deps.installs.remove(install.id);
+    }
     return reply.code(204).send();
   });
 }

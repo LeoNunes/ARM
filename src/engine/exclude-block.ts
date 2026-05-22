@@ -15,12 +15,14 @@ export async function writeExcludeBlock(filePath: string, patterns: string[]): P
   }
 
   const block = `${BEGIN}\n${patterns.join("\n")}\n${END}\n`;
-  const blockRegex = new RegExp(`${escape(BEGIN)}\\n[\\s\\S]*?\\n${escape(END)}\\n?`, "g");
+  const blockPattern = `${escape(BEGIN)}\\n[\\s\\S]*?\\n${escape(END)}\\n?`;
+  const blockRegexTest = new RegExp(blockPattern);
+  const blockRegexReplace = new RegExp(blockPattern, "g");
 
   let result: string;
-  if (blockRegex.test(existing)) {
+  if (blockRegexTest.test(existing)) {
     // Replace existing block in place
-    result = existing.replace(blockRegex, block);
+    result = existing.replace(blockRegexReplace, block);
   } else {
     // Append new block
     const suffix = existing.length && !existing.endsWith("\n") ? "\n" : "";

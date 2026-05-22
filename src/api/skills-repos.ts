@@ -26,18 +26,24 @@ export async function registerSkillsReposRoutes(app: FastifyInstance, deps: Serv
     if (!name || !gitUrl) throw new AppError("bad_input", "name and gitUrl required");
     const tempId = newId();
     const localClonePath = await cloneIntoCache({ gitUrl, branch, cacheDir: deps.cacheDir, repoId: tempId });
-    const created = await deps.skillsRepos.add({
-      name, gitUrl, branch, artifactPaths, presetId, localClonePath,
-      lastFetchedAt: new Date().toISOString(),
-    });
-    // Rename clone dir to match store-assigned id if different
-    if (created.id !== tempId) {
-      const { rename } = await import("node:fs/promises");
-      const pathMod = await import("node:path");
-      const newPath = pathMod.join(deps.cacheDir, created.id);
-      await rename(localClonePath, newPath);
-      await deps.skillsRepos.update(created.id, { localClonePath: newPath });
-      created.localClonePath = newPath;
+    let created;
+    try {
+      created = await deps.skillsRepos.add({
+        name, gitUrl, branch, artifactPaths, presetId, localClonePath,
+        lastFetchedAt: new Date().toISOString(),
+      });
+      // Rename clone dir to match store-assigned id if different
+      if (created.id !== tempId) {
+        const { rename } = await import("node:fs/promises");
+        const pathMod = await import("node:path");
+        const newPath = pathMod.join(deps.cacheDir, created.id);
+        await rename(localClonePath, newPath);
+        await deps.skillsRepos.update(created.id, { localClonePath: newPath });
+        created.localClonePath = newPath;
+      }
+    } catch (err) {
+      await removeClone(localClonePath).catch(() => {});
+      throw err;
     }
     return reply.code(201).send(created);
   });
@@ -54,7 +60,7 @@ export async function registerSkillsReposRoutes(app: FastifyInstance, deps: Serv
     const r = await deps.skillsRepos.get(req.params.id);
     if (!r) return reply.code(404).send({ code: "skills_repo_not_found" });
     const { GitClient } = await import("../git/client");
-    await new GitClient().fetch(r.localClonePath);
+    await new GitClient().fetchAndReset(r.localClonePath, r.branch);
     return deps.skillsRepos.update(r.id, { lastFetchedAt: new Date().toISOString() });
   });
 }

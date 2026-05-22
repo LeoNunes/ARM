@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { ServerDeps } from '../server';
 import { discoverArtifacts } from '../discovery/discover';
 import { readFileAtSha } from '../git/show';
+import { GitClient } from '../git/client';
 import { AppError } from '../util/errors';
 import type { DiscoveredArtifact } from '../adapters/types';
 
@@ -43,7 +44,8 @@ export async function registerArtifactsRoutes(app: FastifyInstance, deps: Server
       }
       const repo = await deps.skillsRepos.get(artifact.sourceRepoId);
       if (!repo) return reply.code(404).send({ code: "skills_repo_not_found" });
-      const content = await readFileAtSha(repo.localClonePath, artifact.lastTouchedSha ?? repo.branch, filePath);
+      const sha = artifact.lastTouchedSha ?? await new GitClient().headSha(repo.localClonePath, repo.branch);
+      const content = await readFileAtSha(repo.localClonePath, sha, filePath);
       reply.header("content-type", "text/plain; charset=utf-8");
       return content;
     },
