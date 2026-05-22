@@ -21,7 +21,7 @@ export async function uninstallArtifact(args: UninstallArgs): Promise<void> {
   if (workingRepo) {
     const dirs = new Set(install.installedFiles.map((f) => path.dirname(path.join(workingRepo.path, f.targetPath))));
     for (const d of dirs) {
-      await rm(d, { force: true, recursive: false }).catch(() => {});
+      await rm(d, { force: true, recursive: true }).catch(() => {});
     }
     const excludePath = path.join(workingRepo.path, ".git", "info", "exclude");
     await writeExcludeBlock(excludePath, computeExcludePatterns(remainingInstallsInTarget));
