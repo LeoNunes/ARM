@@ -177,11 +177,10 @@ describe("applyUpdate", () => {
     ]);
     const dest = path.join(await tmpDir(), "clone");
     await new GitClient().clone(fx.fileUrl, dest, "main");
-    // Checkout v1 so discoverArtifacts sees only the v1 files
-    await simpleGit(dest).checkout(fx.shas[0]!);
     const wr = await makeWorkingRepo();
+    // Checkout v1 so discovery finds only v1 files
+    await simpleGit(dest).checkout(fx.shas[0]!);
     const install = await makeInstall(fx, dest, wr, fx.shas[0]!, false);
-    // Return to main so subsequent git operations work on the full history
     await simpleGit(dest).checkout("main");
     const { agents } = buildRegistries();
     const sr: SkillsRepo = {
@@ -213,19 +212,25 @@ describe("applyUpdate", () => {
     const dest = path.join(await tmpDir(), "clone");
     await new GitClient().clone(fx.fileUrl, dest, "main");
     const wr = await makeWorkingRepo();
+    // Checkout v1 so discovery finds both SKILL.md and old.md
+    await simpleGit(dest).checkout(fx.shas[0]!);
     const install = await makeInstall(fx, dest, wr, fx.shas[0]!, false);
+    await simpleGit(dest).checkout("main");
     const { agents } = buildRegistries();
     const sr: SkillsRepo = {
       id: "src1", name: "src", gitUrl: fx.fileUrl, branch: "main",
       artifactPaths: { skills: ["ai/skills"] }, presetId: null,
       localClonePath: dest, lastFetchedAt: null,
     };
+    // Verify old.md was actually installed
+    const { existsSync } = await import("node:fs");
+    expect(existsSync(path.join(wr.path, ".claude/skills/foo/old.md"))).toBe(true);
+
     await applyUpdate({
       install, skillsRepo: sr, workingRepo: wr,
       newSha: fx.shas[1]!, agent: agents.get("claude-code"),
       otherInstallsInTarget: [],
     });
-    const { existsSync } = await import("node:fs");
     expect(existsSync(path.join(wr.path, ".claude/skills/foo/old.md"))).toBe(false);
     expect(existsSync(path.join(wr.path, ".claude/skills/foo/SKILL.md"))).toBe(true);
   });

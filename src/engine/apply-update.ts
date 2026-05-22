@@ -1,4 +1,4 @@
-import { mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdir, writeFile, rm, readFile } from "node:fs/promises";
 import path from "node:path";
 import { readFileAtSha, listFilesAtSha } from "../git/show";
 import { writeExcludeBlock } from "./exclude-block";
@@ -26,17 +26,26 @@ export async function applyUpdate(args: {
     name: artifactName,
   });
 
-  // Remove all currently installed files
+  // Save old file contents before any deletions (for rollback)
+  const savedOldFiles: Array<{ abs: string; content: string | null }> = [];
   for (const { targetPath } of install.installedFiles) {
-    await rm(path.join(workingRepo.path, targetPath), { force: true });
+    const abs = path.join(workingRepo.path, targetPath);
+    let content: string | null = null;
+    try { content = await readFile(abs, "utf8"); } catch { /* file already missing */ }
+    savedOldFiles.push({ abs, content });
   }
-
-  // List source files at the new SHA
-  const newSourceFiles = await listFilesAtSha(skillsRepo.localClonePath, newSha, rootRelativePath);
 
   const newInstalledFiles: InstalledFile[] = [];
   const writtenPaths: string[] = [];
+
   try {
+    // Remove old files
+    for (const { abs } of savedOldFiles) {
+      await rm(abs, { force: true });
+    }
+
+    // List and write new files
+    const newSourceFiles = await listFilesAtSha(skillsRepo.localClonePath, newSha, rootRelativePath);
     for (const sourcePath of newSourceFiles) {
       const relativeToArtifact = sourcePath.slice(rootRelativePath.length + 1);
       const mapped = agent.mapFileName(relativeToArtifact);
@@ -48,6 +57,7 @@ export async function applyUpdate(args: {
       writtenPaths.push(targetAbs);
       newInstalledFiles.push({ sourcePath, targetPath: targetRel });
     }
+
     const patterns = computeExcludePatterns([
       ...otherInstallsInTarget,
       { installedFiles: newInstalledFiles },
@@ -55,7 +65,14 @@ export async function applyUpdate(args: {
     const excludePath = path.join(workingRepo.path, ".git", "info", "exclude");
     await writeExcludeBlock(excludePath, patterns);
   } catch (err) {
+    // Rollback: remove new files and restore old ones
     for (const p of writtenPaths) await rm(p, { force: true });
+    for (const { abs, content } of savedOldFiles) {
+      if (content !== null) {
+        await mkdir(path.dirname(abs), { recursive: true });
+        await writeFile(abs, content, "utf8").catch(() => {});
+      }
+    }
     throw new AppError("io_error", `apply-update failed: ${(err as Error).message}`);
   }
 
