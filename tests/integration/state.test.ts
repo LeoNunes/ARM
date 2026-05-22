@@ -45,3 +45,33 @@ describe("SettingsStore", () => {
     expect(s.mcpPort).toBe(7747);
   });
 });
+
+import { SkillsRepoStore } from "../../src/state/skills-repos.ts";
+
+describe("SkillsRepoStore", () => {
+  it("adds, lists, gets, and removes a skills repo", async () => {
+    const dir = await tmpDir();
+    const store = new SkillsRepoStore(dir);
+    expect(await store.list()).toEqual([]);
+
+    const repo = await store.add({
+      name: "test",
+      gitUrl: "https://example.com/x.git",
+      branch: "main",
+      artifactPaths: { skills: ["ai/skills"] },
+      presetId: null,
+      localClonePath: "/tmp/clone",
+      lastFetchedAt: null,
+    });
+    expect(repo.id).toMatch(/[0-9a-f-]{36}/);
+
+    const list = await store.list();
+    expect(list).toHaveLength(1);
+
+    const got = await store.get(repo.id);
+    expect(got?.name).toBe("test");
+
+    await store.remove(repo.id);
+    expect(await store.list()).toEqual([]);
+  });
+});
