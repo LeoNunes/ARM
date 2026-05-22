@@ -1,11 +1,11 @@
 import type { FastifyInstance } from "fastify";
-import type { ServerDeps } from "../server.ts";
-import { registerSettingsRoutes } from "./settings.ts";
-import { registerSkillsReposRoutes } from "./skills-repos.ts";
-import { registerWorkingReposRoutes } from "./working-repos.ts";
-import { registerArtifactsRoutes } from "./artifacts.ts";
-import { registerInstallsRoutes } from "./installs.ts";
-import { AppError } from "../util/errors.ts";
+import type { ServerDeps } from '../server';
+import { registerSettingsRoutes } from './settings';
+import { registerSkillsReposRoutes } from './skills-repos';
+import { registerWorkingReposRoutes } from './working-repos';
+import { registerArtifactsRoutes } from './artifacts';
+import { registerInstallsRoutes } from './installs';
+import { AppError } from '../util/errors';
 
 export async function registerRoutes(app: FastifyInstance, deps: ServerDeps): Promise<void> {
   app.setErrorHandler((err, _req, reply) => {

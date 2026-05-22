@@ -1,6 +1,6 @@
 import path from "node:path";
-import { JsonStore } from "./store.ts";
-import type { SettingsFile } from "./schema.ts";
+import { JsonStore } from './store';
+import type { SettingsFile } from './schema';
 
 const DEFAULTS: SettingsFile = { favoriteAgent: "claude-code", mcpPort: 7747 };
 

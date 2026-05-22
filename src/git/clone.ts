@@ -1,6 +1,6 @@
 import path from "node:path";
 import { mkdir, rm } from "node:fs/promises";
-import { GitClient } from "./client.ts";
+import { GitClient } from './client';
 
 export async function cloneIntoCache(args: {
   gitUrl: string;

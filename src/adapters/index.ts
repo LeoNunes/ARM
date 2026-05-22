@@ -1,7 +1,7 @@
-import { AgentRegistry, ArtifactTypeRegistry } from "./registry.ts";
-import { claudeCodeAdapter } from "./agents/claude-code.ts";
-import { cursorAdapter } from "./agents/cursor.ts";
-import { skillsAdapter } from "./artifact-types/skills.ts";
+import { AgentRegistry, ArtifactTypeRegistry } from './registry';
+import { claudeCodeAdapter } from './agents/claude-code';
+import { cursorAdapter } from './agents/cursor';
+import { skillsAdapter } from './artifact-types/skills';
 
 export function buildRegistries(): { agents: AgentRegistry; types: ArtifactTypeRegistry } {
   const agents = new AgentRegistry();

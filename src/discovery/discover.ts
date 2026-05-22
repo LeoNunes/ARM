@@ -1,6 +1,6 @@
-import type { SkillsRepo, ArtifactTypeId } from "../state/schema.ts";
-import type { ArtifactTypeRegistry } from "../adapters/registry.ts";
-import type { DiscoveredArtifact } from "../adapters/types.ts";
+import type { SkillsRepo, ArtifactTypeId } from '../state/schema';
+import type { ArtifactTypeRegistry } from '../adapters/registry';
+import type { DiscoveredArtifact } from '../adapters/types';
 
 export async function discoverArtifacts(
   repo: SkillsRepo,

@@ -1,10 +1,10 @@
 import { mkdir, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
-import { readFileAtSha } from "../git/show.ts";
-import { writeExcludeBlock } from "./exclude-block.ts";
-import { AppError } from "../util/errors.ts";
-import type { DiscoveredArtifact, AgentAdapter } from "../adapters/types.ts";
-import type { Install, InstalledFile, InstallTarget, SkillsRepo, WorkingRepo } from "../state/schema.ts";
+import { readFileAtSha } from '../git/show';
+import { writeExcludeBlock } from './exclude-block';
+import { AppError } from '../util/errors';
+import type { DiscoveredArtifact, AgentAdapter } from '../adapters/types';
+import type { Install, InstalledFile, InstallTarget, SkillsRepo, WorkingRepo } from '../state/schema';
 
 export interface InstallArgs {
   artifact: DiscoveredArtifact;

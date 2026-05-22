@@ -3,12 +3,12 @@ import fastifyStatic from "@fastify/static";
 import path from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { registerRoutes } from "./api/routes.ts";
-import type { SettingsStore } from "./state/settings.ts";
-import type { SkillsRepoStore } from "./state/skills-repos.ts";
-import type { WorkingRepoStore } from "./state/working-repos.ts";
-import type { InstallsStore } from "./state/installs.ts";
-import type { buildRegistries } from "./adapters/index.ts";
+import { registerRoutes } from './api/routes';
+import type { SettingsStore } from './state/settings';
+import type { SkillsRepoStore } from './state/skills-repos';
+import type { WorkingRepoStore } from './state/working-repos';
+import type { InstallsStore } from './state/installs';
+import type { buildRegistries } from './adapters/index';
 
 export interface ServerDeps {
   stateDir: string;

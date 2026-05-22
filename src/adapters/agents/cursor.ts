@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
-import type { AgentAdapter, Scope } from "../types.ts";
-import type { ArtifactTypeId } from "../../state/schema.ts";
+import type { AgentAdapter, Scope } from '../types';
+import type { ArtifactTypeId } from '../../state/schema';
 
 const SUPPORTED: Record<ArtifactTypeId, Scope[]> = {
   skills: ["working-repo", "global"],

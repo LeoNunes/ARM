@@ -1,7 +1,7 @@
 import path from "node:path";
-import { JsonStore } from "./store.ts";
-import type { WorkingRepo } from "./schema.ts";
-import { newId } from "../util/ids.ts";
+import { JsonStore } from './store';
+import type { WorkingRepo } from './schema';
+import { newId } from '../util/ids';
 
 export class WorkingRepoStore {
   private store: JsonStore<WorkingRepo[]>;

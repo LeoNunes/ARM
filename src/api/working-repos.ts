@@ -1,8 +1,8 @@
 import type { FastifyInstance } from "fastify";
-import type { ServerDeps } from "../server.ts";
+import type { ServerDeps } from '../server';
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { AppError } from "../util/errors.ts";
+import { AppError } from '../util/errors';
 
 export async function registerWorkingReposRoutes(app: FastifyInstance, deps: ServerDeps): Promise<void> {
   app.get("/api/working-repos", async () => deps.workingRepos.list());

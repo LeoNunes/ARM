@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import type { ArtifactTypeAdapter, DiscoveredArtifact } from "../types.ts";
-import { lastSHATouching } from "../../git/log.ts";
+import type { ArtifactTypeAdapter, DiscoveredArtifact } from '../types';
+import { lastSHATouching } from '../../git/log';
 
 export const skillsAdapter: ArtifactTypeAdapter = {
   id: "skills",

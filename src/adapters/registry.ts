@@ -1,5 +1,5 @@
-import type { AgentId, ArtifactTypeId } from "../state/schema.ts";
-import type { AgentAdapter, ArtifactTypeAdapter } from "./types.ts";
+import type { AgentId, ArtifactTypeId } from '../state/schema';
+import type { AgentAdapter, ArtifactTypeAdapter } from './types';
 
 export class AgentRegistry {
   private map = new Map<AgentId, AgentAdapter>();

@@ -1,7 +1,7 @@
 import path from "node:path";
-import { JsonStore } from "./store.ts";
-import type { Install } from "./schema.ts";
-import { newId } from "../util/ids.ts";
+import { JsonStore } from './store';
+import type { Install } from './schema';
+import { newId } from '../util/ids';
 
 export class InstallsStore {
   private store: JsonStore<Install[]>;

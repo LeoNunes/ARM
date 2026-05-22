@@ -10,7 +10,7 @@
     "dev:be": "tsx watch src/index.ts",
     "dev:fe": "vite",
     "build:fe": "vite build",
-    "build:be": "tsc -p tsconfig.be.json",
+    "build:be": "tsc -p tsconfig.be.json && node scripts/fix-imports.js",
     "build": "npm run build:fe && npm run build:be",
     "start": "node bin/skillmgr.js",
     "test": "vitest run",

@@ -1,10 +1,10 @@
 import type { FastifyInstance } from "fastify";
-import type { ServerDeps } from "../server.ts";
-import { installArtifact } from "../engine/install.ts";
-import { uninstallArtifact } from "../engine/uninstall.ts";
-import { discoverArtifacts } from "../discovery/discover.ts";
-import { AppError } from "../util/errors.ts";
-import type { AgentId, InstallTarget } from "../state/schema.ts";
+import type { ServerDeps } from '../server';
+import { installArtifact } from '../engine/install';
+import { uninstallArtifact } from '../engine/uninstall';
+import { discoverArtifacts } from '../discovery/discover';
+import { AppError } from '../util/errors';
+import type { AgentId, InstallTarget } from '../state/schema';
 
 interface CreateBody {
   artifactKey: string;

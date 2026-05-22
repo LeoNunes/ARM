@@ -1,11 +1,11 @@
-import { buildServer } from "./server.ts";
-import { ensureStateDirs, resolveStateDir, resolveCacheDir } from "./state/paths.ts";
-import { SettingsStore } from "./state/settings.ts";
-import { SkillsRepoStore } from "./state/skills-repos.ts";
-import { WorkingRepoStore } from "./state/working-repos.ts";
-import { InstallsStore } from "./state/installs.ts";
-import { buildRegistries } from "./adapters/index.ts";
-import { pickFreePort } from "./ports.ts";
+import { buildServer } from './server';
+import { ensureStateDirs, resolveStateDir, resolveCacheDir } from './state/paths';
+import { SettingsStore } from './state/settings';
+import { SkillsRepoStore } from './state/skills-repos';
+import { WorkingRepoStore } from './state/working-repos';
+import { InstallsStore } from './state/installs';
+import { buildRegistries } from './adapters/index';
+import { pickFreePort } from './ports';
 
 async function main() {
   ensureStateDirs();

@@ -1,4 +1,4 @@
-import type { AgentId, ArtifactTypeId } from "../state/schema.ts";
+import type { AgentId, ArtifactTypeId } from '../state/schema';
 
 export type Scope = "working-repo" | "global";
 

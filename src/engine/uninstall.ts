@@ -1,8 +1,8 @@
 import { rm } from "node:fs/promises";
 import path from "node:path";
-import { writeExcludeBlock } from "./exclude-block.ts";
-import { computeExcludePatterns } from "./install.ts";
-import type { Install, WorkingRepo } from "../state/schema.ts";
+import { writeExcludeBlock } from './exclude-block';
+import { computeExcludePatterns } from './install';
+import type { Install, WorkingRepo } from '../state/schema';
 
 export interface UninstallArgs {
   /** Only needs installedFiles + target; accepts both persisted Install records and engine drafts (Omit<Install,"id">). */

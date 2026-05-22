@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import type { ServerDeps } from "../server.ts";
+import type { ServerDeps } from '../server';
 
 export async function registerSettingsRoutes(app: FastifyInstance, { settings }: ServerDeps): Promise<void> {
   app.get("/api/settings", async () => settings.read());

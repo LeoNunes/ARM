@@ -1,9 +1,9 @@
 import type { FastifyInstance } from "fastify";
-import type { ServerDeps } from "../server.ts";
-import { discoverArtifacts } from "../discovery/discover.ts";
-import { readFileAtSha } from "../git/show.ts";
-import { AppError } from "../util/errors.ts";
-import type { DiscoveredArtifact } from "../adapters/types.ts";
+import type { ServerDeps } from '../server';
+import { discoverArtifacts } from '../discovery/discover';
+import { readFileAtSha } from '../git/show';
+import { AppError } from '../util/errors';
+import type { DiscoveredArtifact } from '../adapters/types';
 
 export async function registerArtifactsRoutes(app: FastifyInstance, deps: ServerDeps): Promise<void> {
   app.get<{ Querystring: { q?: string; type?: string; sourceRepoId?: string } }>(
