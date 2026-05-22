@@ -39,6 +39,7 @@ export interface Install {
   sourceRepoId: string;
   target: InstallTarget;
   agent: AgentId;
+  artifactType: ArtifactTypeId;
   installedCommitSha: string;
   autoUpdate: boolean;
   installedFiles: InstalledFile[];

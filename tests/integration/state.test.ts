@@ -99,6 +99,7 @@ describe("InstallsStore", () => {
       sourceRepoId: "src1",
       target: { type: "working-repo", workingRepoId: "w1" },
       agent: "claude-code",
+      artifactType: "skills",
       installedCommitSha: "abc",
       autoUpdate: false,
       installedFiles: [{ sourcePath: "foo/bar", targetPath: ".claude/skills/bar/SKILL.md" }],
@@ -109,5 +110,47 @@ describe("InstallsStore", () => {
     expect((await store.listByWorkingRepo("w2")).length).toBe(0);
     await store.remove(i.id);
     expect(await store.list()).toEqual([]);
+  });
+});
+
+describe("InstallsStore.update()", () => {
+  it("updates fields on an existing install record", async () => {
+    const dir = await tmpDir("skillmgr-state-");
+    const store = new InstallsStore(dir);
+    const record = await store.add({
+      artifactKey: "src1:ai/skills/foo",
+      sourceRepoId: "src1",
+      target: { type: "global" },
+      agent: "claude-code",
+      artifactType: "skills",
+      installedCommitSha: "abc123",
+      autoUpdate: false,
+      installedFiles: [],
+      installedAt: new Date().toISOString(),
+    });
+    const updated = await store.update(record.id, { autoUpdate: true, installedCommitSha: "def456" });
+    expect(updated.autoUpdate).toBe(true);
+    expect(updated.installedCommitSha).toBe("def456");
+
+    const all = await store.list();
+    expect(all).toHaveLength(1);
+    expect(all[0]!.autoUpdate).toBe(true);
+  });
+
+  it("defaults artifactType to 'skills' for records missing the field (backward compat)", async () => {
+    const dir = await tmpDir("skillmgr-state-");
+    // Write a raw record without artifactType to simulate old installs.json
+    const { writeFile } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    const raw = JSON.stringify([{
+      id: "old1", artifactKey: "s:a/b", sourceRepoId: "s",
+      target: { type: "global" }, agent: "claude-code",
+      installedCommitSha: "aaa", autoUpdate: false,
+      installedFiles: [], installedAt: "2024-01-01T00:00:00.000Z",
+    }]);
+    await writeFile(join(dir, "installs.json"), raw, "utf8");
+    const store = new InstallsStore(dir);
+    const all = await store.list();
+    expect(all[0]!.artifactType).toBe("skills");
   });
 });
