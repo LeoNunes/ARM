@@ -7,20 +7,26 @@ export function Dashboard() {
   const [working, setWorking] = useState<WorkingRepo[]>([]);
   const [sources, setSources] = useState<SkillsRepo[]>([]);
   const [installsByWr, setInstallsByWr] = useState<Record<string, Install[]>>({});
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
-      const wr = await api.listWorkingRepos();
-      setWorking(wr);
-      setSources(await api.listSkillsRepos());
-      const map: Record<string, Install[]> = {};
-      for (const w of wr) map[w.id] = await api.listInstallsByWorkingRepo(w.id);
-      setInstallsByWr(map);
+      try {
+        const wr = await api.listWorkingRepos();
+        setWorking(wr);
+        setSources(await api.listSkillsRepos());
+        const map: Record<string, Install[]> = {};
+        for (const w of wr) map[w.id] = await api.listInstallsByWorkingRepo(w.id);
+        setInstallsByWr(map);
+      } catch (e) {
+        setError((e as Error).message);
+      }
     })();
   }, []);
 
   return (
     <>
+      {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
       <h2 style={{ marginTop: 0 }}>Dashboard</h2>
       <section style={{ marginBottom: 28 }}>
         <h3>Working repos</h3>
