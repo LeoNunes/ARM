@@ -6,8 +6,10 @@ import { buildRegistries } from "../../src/adapters/index.ts";
 import { discoverArtifacts } from "../../src/discovery/discover.ts";
 import { installArtifact } from "../../src/engine/install.ts";
 import { checkForUpdates } from "../../src/engine/update-check.ts";
+import { checkForDrift } from "../../src/engine/drift-check.ts";
 import { simpleGit } from "simple-git";
 import path from "node:path";
+import { writeFile } from "node:fs/promises";
 import type { SkillsRepo, WorkingRepo, Install } from "../../src/state/schema.ts";
 
 async function makeWorkingRepo(): Promise<WorkingRepo> {
@@ -102,5 +104,66 @@ describe("checkForUpdates", () => {
     const result = await checkForUpdates(install, sr);
     expect(result.hasUpdate).toBe(false);
     expect(result.availableSha).toBeNull();
+  });
+});
+
+describe("checkForDrift", () => {
+  it("returns isDrifted=false when installed files match the source at installedCommitSha", async () => {
+    const fx = await buildFixtureRepo([
+      { message: "v1", files: { "ai/skills/foo/SKILL.md": "# Foo\nv1\n" } },
+    ]);
+    const dest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fx.fileUrl, dest, "main");
+    const wr = await makeWorkingRepo();
+    const install = await makeInstall(fx, dest, wr, fx.shas[0]!);
+    const sr: SkillsRepo = {
+      id: "src1", name: "src", gitUrl: fx.fileUrl, branch: "main",
+      artifactPaths: { skills: ["ai/skills"] }, presetId: null,
+      localClonePath: dest, lastFetchedAt: null,
+    };
+    const result = await checkForDrift(install, sr, wr.path);
+    expect(result.isDrifted).toBe(false);
+    expect(result.driftedFiles).toHaveLength(0);
+  });
+
+  it("returns isDrifted=true with drifted file listed when working-repo file is modified", async () => {
+    const fx = await buildFixtureRepo([
+      { message: "v1", files: { "ai/skills/foo/SKILL.md": "# Foo\nv1\n" } },
+    ]);
+    const dest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fx.fileUrl, dest, "main");
+    const wr = await makeWorkingRepo();
+    const install = await makeInstall(fx, dest, wr, fx.shas[0]!);
+    // Mutate the installed file
+    const targetAbs = path.join(wr.path, ".claude/skills/foo/SKILL.md");
+    await writeFile(targetAbs, "# Foo\nmodified!\n", "utf8");
+    const sr: SkillsRepo = {
+      id: "src1", name: "src", gitUrl: fx.fileUrl, branch: "main",
+      artifactPaths: { skills: ["ai/skills"] }, presetId: null,
+      localClonePath: dest, lastFetchedAt: null,
+    };
+    const result = await checkForDrift(install, sr, wr.path);
+    expect(result.isDrifted).toBe(true);
+    expect(result.driftedFiles).toHaveLength(1);
+    expect(result.driftedFiles[0]!.sourcePath).toBe("ai/skills/foo/SKILL.md");
+  });
+
+  it("returns isDrifted=true when an installed file is deleted from the working repo", async () => {
+    const fx = await buildFixtureRepo([
+      { message: "v1", files: { "ai/skills/foo/SKILL.md": "# Foo\nv1\n" } },
+    ]);
+    const dest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fx.fileUrl, dest, "main");
+    const wr = await makeWorkingRepo();
+    const install = await makeInstall(fx, dest, wr, fx.shas[0]!);
+    const { rm } = await import("node:fs/promises");
+    await rm(path.join(wr.path, ".claude/skills/foo/SKILL.md"), { force: true });
+    const sr: SkillsRepo = {
+      id: "src1", name: "src", gitUrl: fx.fileUrl, branch: "main",
+      artifactPaths: { skills: ["ai/skills"] }, presetId: null,
+      localClonePath: dest, lastFetchedAt: null,
+    };
+    const result = await checkForDrift(install, sr, wr.path);
+    expect(result.isDrifted).toBe(true);
   });
 });
