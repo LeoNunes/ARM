@@ -75,3 +75,39 @@ describe("SkillsRepoStore", () => {
     expect(await store.list()).toEqual([]);
   });
 });
+
+import { WorkingRepoStore } from "../../src/state/working-repos.ts";
+import { InstallsStore } from "../../src/state/installs.ts";
+
+describe("WorkingRepoStore", () => {
+  it("CRUDs working repos", async () => {
+    const dir = await tmpDir();
+    const store = new WorkingRepoStore(dir);
+    const r = await store.add({ name: "alpha", path: "/x/alpha", addedAt: new Date().toISOString() });
+    expect((await store.list())[0]?.id).toBe(r.id);
+    await store.remove(r.id);
+    expect(await store.list()).toEqual([]);
+  });
+});
+
+describe("InstallsStore", () => {
+  it("CRUDs installs and filters by working repo", async () => {
+    const dir = await tmpDir();
+    const store = new InstallsStore(dir);
+    const i = await store.add({
+      artifactKey: "src1:foo/bar",
+      sourceRepoId: "src1",
+      target: { type: "working-repo", workingRepoId: "w1" },
+      agent: "claude-code",
+      installedCommitSha: "abc",
+      autoUpdate: false,
+      installedFiles: [{ sourcePath: "foo/bar", targetPath: ".claude/skills/bar/SKILL.md" }],
+      installedAt: new Date().toISOString(),
+    });
+    expect(i.id).toMatch(/[0-9a-f-]{36}/);
+    expect((await store.listByWorkingRepo("w1")).length).toBe(1);
+    expect((await store.listByWorkingRepo("w2")).length).toBe(0);
+    await store.remove(i.id);
+    expect(await store.list()).toEqual([]);
+  });
+});
