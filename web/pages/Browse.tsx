@@ -8,7 +8,13 @@ export function Browse() {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [installing, setInstalling] = useState<Artifact | null>(null);
 
-  useEffect(() => { api.listArtifacts({ q: q || undefined }).then(setArtifacts); }, [q]);
+  useEffect(() => {
+    const ac = new AbortController();
+    api.listArtifacts({ q: q || undefined }, ac.signal)
+      .then(setArtifacts)
+      .catch(() => {});
+    return () => ac.abort();
+  }, [q]);
 
   return (
     <>

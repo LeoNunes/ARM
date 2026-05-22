@@ -6,12 +6,11 @@ import { InstallModal } from "../../web/components/InstallModal.tsx";
 import type { Artifact } from "../../web/api.ts";
 
 beforeEach(() => {
-  // @ts-ignore
   globalThis.fetch = vi.fn(async (url: string) => {
     if (url === "/api/settings") return new Response(JSON.stringify({ favoriteAgent: "cursor", mcpPort: 7747 }), { status: 200 });
     if (url === "/api/working-repos") return new Response(JSON.stringify([{ id: "w1", name: "alpha", path: "/x", addedAt: "" }]), { status: 200 });
     return new Response("{}", { status: 200 });
-  });
+  }) as typeof fetch;
 });
 
 const artifact: Artifact = {

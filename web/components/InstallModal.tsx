@@ -19,12 +19,14 @@ export function InstallModal({ artifact, onClose, onDone }: Props) {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    Promise.all([api.getSettings(), api.listWorkingRepos()]).then(([s, wr]) => {
-      setSettings(s);
-      setAgent(s.favoriteAgent);
-      setWorkingRepos(wr);
-      if (wr[0]) setWorkingRepoId(wr[0].id);
-    });
+    Promise.all([api.getSettings(), api.listWorkingRepos()])
+      .then(([s, wr]) => {
+        setSettings(s);
+        setAgent(s.favoriteAgent);
+        setWorkingRepos(wr);
+        if (wr[0]) setWorkingRepoId(wr[0].id);
+      })
+      .catch((e) => setError((e as Error).message));
   }, []);
 
   const submit = async () => {
