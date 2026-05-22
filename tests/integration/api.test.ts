@@ -100,3 +100,24 @@ describe("API /working-repos", () => {
     expect(list.json()).toHaveLength(1);
   });
 });
+
+describe("API /artifacts", () => {
+  it("lists artifacts across registered sources", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    const fx = await buildFixtureRepo([
+      { message: "init", files: {
+        "ai/skills/foo/SKILL.md": "# Foo\n",
+        "ai/skills/bar/SKILL.md": "# Bar\n",
+      } },
+    ]);
+    await app.inject({
+      method: "POST", url: "/api/skills-repos",
+      payload: { name: "src", gitUrl: fx.fileUrl, branch: "main", artifactPaths: { skills: ["ai/skills"] } },
+    });
+    const list = await app.inject({ method: "GET", url: "/api/artifacts" });
+    expect(list.statusCode).toBe(200);
+    const names = list.json().map((a: { name: string }) => a.name).sort();
+    expect(names).toEqual(["bar", "foo"]);
+  });
+});

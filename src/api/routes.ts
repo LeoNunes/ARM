@@ -3,6 +3,7 @@ import type { ServerDeps } from "../server.ts";
 import { registerSettingsRoutes } from "./settings.ts";
 import { registerSkillsReposRoutes } from "./skills-repos.ts";
 import { registerWorkingReposRoutes } from "./working-repos.ts";
+import { registerArtifactsRoutes } from "./artifacts.ts";
 import { AppError } from "../util/errors.ts";
 
 export async function registerRoutes(app: FastifyInstance, deps: ServerDeps): Promise<void> {
@@ -16,4 +17,5 @@ export async function registerRoutes(app: FastifyInstance, deps: ServerDeps): Pr
   await registerSettingsRoutes(app, deps);
   await registerSkillsReposRoutes(app, deps);
   await registerWorkingReposRoutes(app, deps);
+  await registerArtifactsRoutes(app, deps);
 }

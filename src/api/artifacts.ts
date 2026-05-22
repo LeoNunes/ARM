@@ -1,0 +1,58 @@
+import type { FastifyInstance } from "fastify";
+import type { ServerDeps } from "../server.ts";
+import { discoverArtifacts } from "../discovery/discover.ts";
+import { readFileAtSha } from "../git/show.ts";
+import { AppError } from "../util/errors.ts";
+import type { DiscoveredArtifact } from "../adapters/types.ts";
+
+export async function registerArtifactsRoutes(app: FastifyInstance, deps: ServerDeps): Promise<void> {
+  app.get<{ Querystring: { q?: string; type?: string; sourceRepoId?: string } }>(
+    "/api/artifacts",
+    async (req) => {
+      const all = await discoverAll(deps);
+      const { q, type, sourceRepoId } = req.query ?? {};
+      return all.filter((a) => {
+        if (sourceRepoId && a.sourceRepoId !== sourceRepoId) return false;
+        if (type && a.type !== type) return false;
+        if (q) {
+          const needle = q.toLowerCase();
+          if (!a.name.toLowerCase().includes(needle) && !(a.description ?? "").toLowerCase().includes(needle)) {
+            return false;
+          }
+        }
+        return true;
+      });
+    },
+  );
+
+  app.get<{ Params: { artifactKey: string } }>("/api/artifacts/:artifactKey", async (req, reply) => {
+    const a = (await discoverAll(deps)).find((x) => x.artifactKey === decodeURIComponent(req.params.artifactKey));
+    if (!a) return reply.code(404).send({ code: "artifact_not_found" });
+    return a;
+  });
+
+  app.get<{ Params: { artifactKey: string; "*": string } }>(
+    "/api/artifacts/:artifactKey/files/*",
+    async (req, reply) => {
+      const key = decodeURIComponent(req.params.artifactKey);
+      const filePath = (req.params as Record<string, string>)["*"] as string;
+      const artifact = (await discoverAll(deps)).find((a) => a.artifactKey === key);
+      if (!artifact) return reply.code(404).send({ code: "artifact_not_found" });
+      if (!artifact.files.includes(filePath)) {
+        throw new AppError("bad_input", `file not in artifact: ${filePath}`);
+      }
+      const repo = await deps.skillsRepos.get(artifact.sourceRepoId);
+      if (!repo) return reply.code(404).send({ code: "skills_repo_not_found" });
+      const content = await readFileAtSha(repo.localClonePath, artifact.lastTouchedSha ?? repo.branch, filePath);
+      reply.header("content-type", "text/plain; charset=utf-8");
+      return content;
+    },
+  );
+}
+
+async function discoverAll(deps: ServerDeps): Promise<DiscoveredArtifact[]> {
+  const sources = await deps.skillsRepos.list();
+  const out: DiscoveredArtifact[] = [];
+  for (const s of sources) out.push(...(await discoverArtifacts(s, deps.registries.types)));
+  return out;
+}
