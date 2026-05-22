@@ -9,7 +9,8 @@ import { checkForUpdates } from "../../src/engine/update-check.ts";
 import { checkForDrift } from "../../src/engine/drift-check.ts";
 import { simpleGit } from "simple-git";
 import path from "node:path";
-import { writeFile } from "node:fs/promises";
+import { writeFile, readFile } from "node:fs/promises";
+import { applyUpdate } from "../../src/engine/apply-update.ts";
 import type { SkillsRepo, WorkingRepo, Install } from "../../src/state/schema.ts";
 
 async function makeWorkingRepo(): Promise<WorkingRepo> {
@@ -165,5 +166,67 @@ describe("checkForDrift", () => {
     };
     const result = await checkForDrift(install, sr, wr.path);
     expect(result.isDrifted).toBe(true);
+  });
+});
+
+describe("applyUpdate", () => {
+  it("overwrites installed files with content from the new SHA and returns updated record fields", async () => {
+    const fx = await buildFixtureRepo([
+      { message: "v1", files: { "ai/skills/foo/SKILL.md": "# Foo\nv1\n" } },
+      { message: "v2", files: { "ai/skills/foo/SKILL.md": "# Foo\nv2\n", "ai/skills/foo/extra.md": "new file\n" } },
+    ]);
+    const dest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fx.fileUrl, dest, "main");
+    // Checkout v1 so discoverArtifacts sees only the v1 files
+    await simpleGit(dest).checkout(fx.shas[0]!);
+    const wr = await makeWorkingRepo();
+    const install = await makeInstall(fx, dest, wr, fx.shas[0]!, false);
+    // Return to main so subsequent git operations work on the full history
+    await simpleGit(dest).checkout("main");
+    const { agents } = buildRegistries();
+    const sr: SkillsRepo = {
+      id: "src1", name: "src", gitUrl: fx.fileUrl, branch: "main",
+      artifactPaths: { skills: ["ai/skills"] }, presetId: null,
+      localClonePath: dest, lastFetchedAt: null,
+    };
+    const patch = await applyUpdate({
+      install,
+      skillsRepo: sr,
+      workingRepo: wr,
+      newSha: fx.shas[1]!,
+      agent: agents.get("claude-code"),
+      otherInstallsInTarget: [],
+    });
+    expect(patch.installedCommitSha).toBe(fx.shas[1]);
+    expect(patch.installedFiles).toHaveLength(2);
+    const content = await readFile(path.join(wr.path, ".claude/skills/foo/SKILL.md"), "utf8");
+    expect(content).toBe("# Foo\nv2\n");
+    const extra = await readFile(path.join(wr.path, ".claude/skills/foo/extra.md"), "utf8");
+    expect(extra).toBe("new file\n");
+  });
+
+  it("removes files that were deleted in the new version", async () => {
+    const fx = await buildFixtureRepo([
+      { message: "v1", files: { "ai/skills/foo/SKILL.md": "# Foo\nv1\n", "ai/skills/foo/old.md": "old\n" } },
+      { message: "v2 removes old.md", files: { "ai/skills/foo/SKILL.md": "# Foo\nv2\n" }, deletes: ["ai/skills/foo/old.md"] },
+    ]);
+    const dest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fx.fileUrl, dest, "main");
+    const wr = await makeWorkingRepo();
+    const install = await makeInstall(fx, dest, wr, fx.shas[0]!, false);
+    const { agents } = buildRegistries();
+    const sr: SkillsRepo = {
+      id: "src1", name: "src", gitUrl: fx.fileUrl, branch: "main",
+      artifactPaths: { skills: ["ai/skills"] }, presetId: null,
+      localClonePath: dest, lastFetchedAt: null,
+    };
+    await applyUpdate({
+      install, skillsRepo: sr, workingRepo: wr,
+      newSha: fx.shas[1]!, agent: agents.get("claude-code"),
+      otherInstallsInTarget: [],
+    });
+    const { existsSync } = await import("node:fs");
+    expect(existsSync(path.join(wr.path, ".claude/skills/foo/old.md"))).toBe(false);
+    expect(existsSync(path.join(wr.path, ".claude/skills/foo/SKILL.md"))).toBe(true);
   });
 });
