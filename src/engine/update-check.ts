@@ -11,6 +11,7 @@ export async function checkForUpdates(
   skillsRepo: SkillsRepo,
 ): Promise<UpdateCheckResult> {
   const files = install.installedFiles.map((f) => f.sourcePath);
+  if (files.length === 0) return { hasUpdate: false, availableSha: null };
   const hasUpdate = await hasCommitsTouching(
     skillsRepo.localClonePath,
     install.installedCommitSha,

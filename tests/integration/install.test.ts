@@ -14,9 +14,12 @@ import type { SkillsRepo, WorkingRepo } from "../../src/state/schema.ts";
 
 async function makeWorkingRepo(): Promise<WorkingRepo> {
   const dir = await tmpDir("skillmgr-wr-");
-  await simpleGit(dir).init();
-  await simpleGit(dir).addConfig("user.email", "a@b").addConfig("user.name", "t");
-  await simpleGit(dir).commit("seed", [], { "--allow-empty": null });
+  const sg = simpleGit(dir);
+  await sg.init();
+  await sg.addConfig("user.email", "a@b");
+  await sg.addConfig("user.name", "t");
+  await sg.addConfig("commit.gpgsign", "false");
+  await sg.commit("seed", [], { "--allow-empty": null });
   return { id: "w1", name: "alpha", path: dir, addedAt: new Date().toISOString() };
 }
 

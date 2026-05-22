@@ -21,6 +21,7 @@ export async function buildFixtureRepo(commits: FixtureCommit[]): Promise<Fixtur
   await git.init();
   await git.addConfig("user.email", "fixture@example.com");
   await git.addConfig("user.name", "Fixture");
+  await git.addConfig("commit.gpgsign", "false");
   await git.checkoutLocalBranch("main");
   const shas: string[] = [];
   for (const c of commits) {
