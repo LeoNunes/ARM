@@ -6,6 +6,7 @@ import { WorkingRepoStore } from "../../src/state/working-repos.ts";
 import { InstallsStore } from "../../src/state/installs.ts";
 import { buildRegistries } from "../../src/adapters/index.ts";
 import { tmpDir } from "../helpers/tmp-dir.ts";
+import { buildFixtureRepo } from "../helpers/build-fixture-repo.ts";
 
 async function makeDeps() {
   const stateDir = await tmpDir("skillmgr-api-");
@@ -40,5 +41,35 @@ describe("API /settings", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().favoriteAgent).toBe("cursor");
+  });
+});
+
+describe("API /skills-repos", () => {
+  it("registers a source by cloning + lists + removes", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    const fx = await buildFixtureRepo([
+      { message: "init", files: { "ai/skills/foo/SKILL.md": "# Foo\n" } },
+    ]);
+    const created = await app.inject({
+      method: "POST", url: "/api/skills-repos",
+      payload: {
+        name: "test-src",
+        gitUrl: fx.fileUrl,
+        branch: "main",
+        artifactPaths: { skills: ["ai/skills"] },
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    const repo = created.json();
+    expect(repo.id).toMatch(/[0-9a-f-]{36}/);
+
+    const list = await app.inject({ method: "GET", url: "/api/skills-repos" });
+    expect(list.json()).toHaveLength(1);
+
+    const removed = await app.inject({ method: "DELETE", url: `/api/skills-repos/${repo.id}` });
+    expect(removed.statusCode).toBe(204);
+    const list2 = await app.inject({ method: "GET", url: "/api/skills-repos" });
+    expect(list2.json()).toHaveLength(0);
   });
 });
