@@ -3,3 +3,4 @@ dist/
 .superpowers/
 *.log
 .vite/
+.claude/worktrees/
