@@ -276,3 +276,96 @@ describe("MCP read_artifact_file", () => {
     expect(parseResult(result).code).toBe("bad_input");
   });
 });
+
+// ─── list_installs ───────────────────────────────────────────────────────────
+
+describe("MCP list_installs", () => {
+  async function seedInstall(deps: ServerDeps) {
+    const fx = await buildFixtureRepo([
+      { message: "init", files: { "ai/skills/foo/SKILL.md": "# Foo\n" } },
+    ]);
+    const cloneDest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fx.fileUrl, cloneDest, "main");
+    const repo = await deps.skillsRepos.add({
+      name: "src", gitUrl: fx.fileUrl, branch: "main",
+      artifactPaths: { skills: ["ai/skills"] }, presetId: null,
+      localClonePath: cloneDest, lastFetchedAt: null,
+    });
+    const wr = await makeWorkingRepo();
+    const savedWr = await deps.workingRepos.add({ name: wr.name, path: wr.path, addedAt: wr.addedAt });
+    const { agents, types } = deps.registries;
+    const { discoverArtifacts } = await import("../../src/discovery/discover.ts");
+    const { installArtifact } = await import("../../src/engine/install.ts");
+    const artifacts = await discoverArtifacts(repo, types);
+    const foo = artifacts.find((a) => a.name === "foo")!;
+    const record = await installArtifact({
+      artifact: foo, skillsRepo: repo,
+      target: { type: "working-repo", workingRepoId: savedWr.id },
+      workingRepo: savedWr, agent: agents.get("claude-code"),
+      sha: fx.shas[0]!, autoUpdate: false, existingInstallsInTarget: [],
+    });
+    const install = await deps.installs.add(record);
+    return { repo, wr: savedWr, install };
+  }
+
+  it("returns empty array when no installs exist", async () => {
+    const deps = await makeDeps();
+    const { client } = await makeMcpClient(deps);
+    const result = await client.callTool({ name: "list_installs", arguments: {} });
+    expect(result.isError).toBeFalsy();
+    expect(parseResult(result)).toEqual([]);
+  });
+
+  it("returns installs with status field", async () => {
+    const deps = await makeDeps();
+    await seedInstall(deps);
+    const { client } = await makeMcpClient(deps);
+    const result = await client.callTool({ name: "list_installs", arguments: {} });
+    expect(result.isError).toBeFalsy();
+    const installs = parseResult(result);
+    expect(installs).toHaveLength(1);
+    expect(installs[0].status).toBe("up-to-date");
+  });
+
+  it("filters by workingRepoId", async () => {
+    const deps = await makeDeps();
+    const { wr } = await seedInstall(deps);
+    const { client } = await makeMcpClient(deps);
+    const result = await client.callTool({
+      name: "list_installs",
+      arguments: { workingRepoId: wr.id },
+    });
+    expect(result.isError).toBeFalsy();
+    expect(parseResult(result)).toHaveLength(1);
+  });
+
+  it("returns empty when workingRepoId does not match", async () => {
+    const deps = await makeDeps();
+    await seedInstall(deps);
+    const { client } = await makeMcpClient(deps);
+    const result = await client.callTool({
+      name: "list_installs",
+      arguments: { workingRepoId: "nonexistent" },
+    });
+    expect(result.isError).toBeFalsy();
+    expect(parseResult(result)).toHaveLength(0);
+  });
+
+  it("filters by agent", async () => {
+    const deps = await makeDeps();
+    await seedInstall(deps);
+    const { client } = await makeMcpClient(deps);
+
+    const ccResult = await client.callTool({
+      name: "list_installs",
+      arguments: { agent: "claude-code" },
+    });
+    expect(parseResult(ccResult)).toHaveLength(1);
+
+    const cursorResult = await client.callTool({
+      name: "list_installs",
+      arguments: { agent: "cursor" },
+    });
+    expect(parseResult(cursorResult)).toHaveLength(0);
+  });
+});

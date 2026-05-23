@@ -6,6 +6,9 @@ import { readFileAtSha } from "../git/show.js";
 import { recentShasTouching } from "../git/log.js";
 import { GitClient } from "../git/client.js";
 import type { DiscoveredArtifact } from "../adapters/types.js";
+import { checkForUpdates } from "../engine/update-check.js";
+import { checkForDrift } from "../engine/drift-check.js";
+import { computeInstallStatus } from "../engine/status.js";
 
 function toolError(code: string, message: string) {
   return {
@@ -110,6 +113,55 @@ export function createMcpServer(deps: ServerDeps): McpServer {
         sha ?? artifact.lastTouchedSha ?? (await new GitClient().headSha(repo.localClonePath, repo.branch));
       const content = await readFileAtSha(repo.localClonePath, resolvedSha, filePath);
       return { content: [{ type: "text" as const, text: content }] };
+    },
+  );
+
+  server.tool(
+    "list_installs",
+    "List current installs with status; optional filters: workingRepoId, agent, type",
+    {
+      workingRepoId: z.string().optional(),
+      agent: z.string().optional(),
+      type: z.string().optional(),
+    },
+    async ({ workingRepoId, agent, type }) => {
+      const allInstalls = await deps.installs.list();
+      const filtered = allInstalls.filter((i) => {
+        if (
+          workingRepoId &&
+          (i.target.type !== "working-repo" || i.target.workingRepoId !== workingRepoId)
+        ) {
+          return false;
+        }
+        if (agent && i.agent !== agent) return false;
+        if (type && i.artifactType !== type) return false;
+        return true;
+      });
+
+      const allRepos = await deps.skillsRepos.list();
+      const reposById = new Map(allRepos.map((r) => [r.id, r]));
+      const allWorkingRepos = await deps.workingRepos.list();
+      const workingReposById = new Map(allWorkingRepos.map((r) => [r.id, r]));
+
+      const result = await Promise.all(
+        filtered.map(async (install) => {
+          const sr = reposById.get(install.sourceRepoId);
+          if (!sr) return { ...install, status: "up-to-date", availableSha: null };
+          const updateResult = await checkForUpdates(install, sr);
+          let isDrifted = false;
+          if (install.target.type === "working-repo") {
+            const wr = workingReposById.get(install.target.workingRepoId);
+            if (wr) {
+              const driftResult = await checkForDrift(install, sr, wr.path);
+              isDrifted = driftResult.isDrifted;
+            }
+          }
+          const status = computeInstallStatus(updateResult.hasUpdate, isDrifted);
+          return { ...install, status, availableSha: updateResult.availableSha };
+        }),
+      );
+
+      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
     },
   );
 
