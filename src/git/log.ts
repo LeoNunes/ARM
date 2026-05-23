@@ -22,3 +22,26 @@ export async function hasCommitsTouching(
   const out = (await simpleGit(repoPath).raw(args)).trim();
   return out.length > 0;
 }
+
+export interface CommitSummary {
+  sha: string;
+  date: string;
+  subject: string;
+}
+
+export async function recentShasTouching(
+  repoPath: string,
+  ref: string,
+  paths: string[],
+  limit = 10,
+): Promise<CommitSummary[]> {
+  if (!paths.length) return [];
+  const args = ["log", ref, `-n${limit}`, "--format=%H%x00%ai%x00%s", "--"];
+  for (const p of paths) args.push(p);
+  const out = (await simpleGit(repoPath).raw(args)).trim();
+  if (!out) return [];
+  return out.split("\n").map((line) => {
+    const [sha, date, ...rest] = line.split("\x00");
+    return { sha: sha!, date: date!, subject: rest.join("\x00") };
+  });
+}
