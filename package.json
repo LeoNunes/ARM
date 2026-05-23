@@ -22,6 +22,7 @@
     "env-paths": "^3.0.0",
     "fastify": "^4.28.0",
     "open": "^10.1.0",
+    "react-diff-viewer-continued": "^4.2.2",
     "simple-git": "^3.25.0",
     "uuid": "^10.0.0"
   },
