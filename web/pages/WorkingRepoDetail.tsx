@@ -95,8 +95,20 @@ export function WorkingRepoDetail() {
                 <td><StatusPill status={i.status} /></td>
                 <td>{i.autoUpdate ? "on" : "off"}</td>
                 <td style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {i.status === "update-available+drifted" && (
+                  {(i.status === "update-available+drifted") && (
                     <>
+                      <Link
+                        to={`/diff?mode=installed-vs-latest&installId=${i.id}`}
+                        style={{ fontSize: 12, padding: "4px 8px", background: "transparent", color: "var(--muted)", textDecoration: "none", border: "1px solid var(--border)", borderRadius: 4 }}
+                      >
+                        View diff
+                      </Link>
+                      <Link
+                        to={`/diff?mode=installed-vs-drifted&installId=${i.id}`}
+                        style={{ fontSize: 12, padding: "4px 8px", background: "transparent", color: "var(--muted)", textDecoration: "none", border: "1px solid var(--border)", borderRadius: 4 }}
+                      >
+                        View drift
+                      </Link>
                       <button
                         className="btn secondary"
                         style={{ fontSize: 12 }}
@@ -128,20 +140,52 @@ export function WorkingRepoDetail() {
                     </>
                   )}
                   {i.status === "update-available" && (
-                    <button
-                      className="btn secondary"
-                      style={{ fontSize: 12 }}
-                      onClick={async () => {
-                        try {
-                          await api.applyInstallUpdate(i.id);
-                          reload();
-                        } catch (err) {
-                          alert((err as Error).message);
-                        }
-                      }}
-                    >
-                      Update
-                    </button>
+                    <>
+                      <Link
+                        to={`/diff?mode=installed-vs-latest&installId=${i.id}`}
+                        style={{ fontSize: 12, padding: "4px 8px", background: "transparent", color: "var(--muted)", textDecoration: "none", border: "1px solid var(--border)", borderRadius: 4 }}
+                      >
+                        View diff
+                      </Link>
+                      <button
+                        className="btn secondary"
+                        style={{ fontSize: 12 }}
+                        onClick={async () => {
+                          try {
+                            await api.applyInstallUpdate(i.id);
+                            reload();
+                          } catch (err) {
+                            alert((err as Error).message);
+                          }
+                        }}
+                      >
+                        Update
+                      </button>
+                    </>
+                  )}
+                  {i.status === "drifted" && (
+                    <>
+                      <Link
+                        to={`/diff?mode=installed-vs-drifted&installId=${i.id}`}
+                        style={{ fontSize: 12, padding: "4px 8px", background: "transparent", color: "var(--muted)", textDecoration: "none", border: "1px solid var(--border)", borderRadius: 4 }}
+                      >
+                        View drift
+                      </Link>
+                      <button
+                        className="btn secondary"
+                        style={{ fontSize: 12 }}
+                        onClick={async () => {
+                          try {
+                            await api.reapplyInstall(i.id);
+                            reload();
+                          } catch (err) {
+                            alert((err as Error).message);
+                          }
+                        }}
+                      >
+                        Re-apply
+                      </button>
+                    </>
                   )}
                   <button
                     className="btn secondary"

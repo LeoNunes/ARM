@@ -82,4 +82,13 @@ describe("WorkingRepoDetail", () => {
     expect(await screen.findByRole("button", { name: "Disable auto-update" })).toBeTruthy();
     expect(await screen.findByRole("button", { name: "Discard & update" })).toBeTruthy();
   });
+
+  it("renders 'View diff' link for update-available install", async () => {
+    renderDetail();
+    // wait for content to load
+    await screen.findByRole("button", { name: "Disable auto-update" });
+    // At least one "View diff" link should exist
+    const diffLinks = await screen.findAllByText(/View diff/);
+    expect(diffLinks.length).toBeGreaterThan(0);
+  });
 });
