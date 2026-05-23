@@ -275,3 +275,55 @@ describe("API /installs — status, PATCH auto-update, POST update", () => {
     expect(res2.json().code).toBe("bad_input");
   });
 });
+
+describe("API POST /working-repos/:id/refresh", () => {
+  it("runs auto-update pass and returns installs with updated status", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    const fx = await buildFixtureRepo([
+      { message: "v1", files: { "ai/skills/foo/SKILL.md": "v1\n" } },
+      { message: "v2", files: { "ai/skills/foo/SKILL.md": "v2\n" } },
+    ]);
+    await app.inject({
+      method: "POST", url: "/api/skills-repos",
+      payload: { name: "src", gitUrl: fx.fileUrl, branch: "main", artifactPaths: { skills: ["ai/skills"] } },
+    });
+    const wrPath = await tmpDir("skillmgr-wr-");
+    await simpleGit(wrPath).init();
+    await simpleGit(wrPath).addConfig("user.email", "a@b");
+    await simpleGit(wrPath).addConfig("user.name", "t");
+    await simpleGit(wrPath).addConfig("commit.gpgsign", "false");
+    await simpleGit(wrPath).commit("seed", [], { "--allow-empty": null });
+    const wr = (await app.inject({
+      method: "POST", url: "/api/working-repos",
+      payload: { name: "w", path: wrPath },
+    })).json();
+    const arts = (await app.inject({ method: "GET", url: "/api/artifacts" })).json();
+    const foo = arts.find((a: { name: string }) => a.name === "foo");
+    // Install at v1 with autoUpdate=true
+    await app.inject({
+      method: "POST", url: "/api/installs",
+      payload: {
+        artifactKey: foo.artifactKey,
+        target: { type: "working-repo", workingRepoId: wr.id },
+        autoUpdate: true,
+        sha: fx.shas[0],
+      },
+    });
+
+    const res = await app.inject({ method: "POST", url: `/api/working-repos/${wr.id}/refresh` });
+    expect(res.statusCode).toBe(200);
+    const installs = res.json();
+    expect(installs).toHaveLength(1);
+    // Auto-update should have fired: SHA updated to v2
+    expect(installs[0].installedCommitSha).toBe(fx.shas[1]);
+    expect(installs[0].status).toBe("up-to-date");
+  });
+
+  it("returns 404 for unknown working repo", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    const res = await app.inject({ method: "POST", url: "/api/working-repos/no-such-id/refresh" });
+    expect(res.statusCode).toBe(404);
+  });
+});
