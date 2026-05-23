@@ -16,6 +16,7 @@ export async function registerRoutes(app: FastifyInstance, deps: ServerDeps): Pr
         err.code === "already_installed" ? 409 :
         err.code === "artifact_not_found" ? 404 :
         err.code === "working_repo_not_found" ? 404 :
+        err.code === "install_not_found" ? 404 :
         err.code === "skills_repo_not_found" ? 404 :
         500;
       return reply.code(status).send({ code: err.code, message: err.message });
