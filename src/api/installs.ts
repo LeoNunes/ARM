@@ -131,6 +131,27 @@ export async function registerInstallsRoutes(app: FastifyInstance, deps: ServerD
     return updated;
   });
 
+  app.post<{ Params: { id: string } }>("/api/installs/:id/reapply", async (req, reply) => {
+    const install = await deps.installs.get(req.params.id);
+    if (!install) return reply.code(404).send({ code: "install_not_found" });
+    if (install.target.type !== "working-repo") {
+      throw new AppError("bad_input", "reapply only supported for working-repo targets");
+    }
+    const sr = await deps.skillsRepos.get(install.sourceRepoId);
+    if (!sr) throw new AppError("skills_repo_not_found", install.sourceRepoId);
+    const wr = await deps.workingRepos.get(install.target.workingRepoId);
+    if (!wr) throw new AppError("working_repo_not_found", install.target.workingRepoId);
+    const agent = deps.registries.agents.get(install.agent);
+    const others = (await deps.installs.listByWorkingRepo(wr.id)).filter((i) => i.id !== install.id);
+    const patch = await applyUpdate({
+      install, skillsRepo: sr, workingRepo: wr,
+      newSha: install.installedCommitSha, agent,
+      otherInstallsInTarget: others,
+    });
+    const updated = await deps.installs.update(install.id, patch);
+    return updated;
+  });
+
   app.delete<{ Params: { id: string } }>("/api/installs/:id", async (req, reply) => {
     const install = await deps.installs.get(req.params.id);
     if (!install) return reply.code(404).send({ code: "install_not_found" });
