@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { readFileAtSha } from "../git/show.ts";
-import type { Install, SkillsRepo } from "../state/schema.ts";
+import { readFileAtSha } from "../git/show";
+import type { Install, SkillsRepo } from "../state/schema";
 
 export interface DriftedFile {
   sourcePath: string;
