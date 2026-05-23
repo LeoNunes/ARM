@@ -1,4 +1,3 @@
-// tests/integration/mcp.test.ts
 import { describe, it, expect } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -13,6 +12,7 @@ import { GitClient } from "../../src/git/client.ts";
 import { simpleGit } from "simple-git";
 import path from "node:path";
 import type { ServerDeps } from "../../src/server.ts";
+import type { WorkingRepo } from "../../src/state/schema.ts";
 import { createMcpServer } from "../../src/mcp/tools.ts";
 
 async function makeDeps(): Promise<ServerDeps> {
@@ -35,7 +35,7 @@ async function makeMcpClient(deps: ServerDeps) {
   await server.connect(serverTransport);
   const client = new Client({ name: "test-client", version: "1.0.0" }, {});
   await client.connect(clientTransport);
-  return { client, server };
+  return { client };
 }
 
 function parseResult(result: { content: Array<{ type: string; text?: string }> }) {
@@ -44,7 +44,7 @@ function parseResult(result: { content: Array<{ type: string; text?: string }> }
   return JSON.parse(first.text);
 }
 
-async function makeWorkingRepo(): Promise<{ id: string; name: string; path: string; addedAt: string }> {
+async function makeWorkingRepo(): Promise<WorkingRepo> {
   const dir = await tmpDir("skillmgr-wr-");
   const sg = simpleGit(dir);
   await sg.init();
