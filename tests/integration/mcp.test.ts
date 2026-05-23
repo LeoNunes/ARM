@@ -40,8 +40,9 @@ async function makeMcpClient(deps: ServerDeps) {
   return { client };
 }
 
-function parseResult(result: { content: Array<{ type: string; text?: string }> }) {
-  const first = result.content[0];
+function parseResult(result: unknown) {
+  const r = result as { content?: Array<{ type: string; text?: string }> };
+  const first = r.content?.[0];
   if (!first || first.type !== "text" || !first.text) throw new Error("no text content");
   return JSON.parse(first.text);
 }
