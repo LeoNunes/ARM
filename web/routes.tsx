@@ -6,6 +6,7 @@ import { SkillsRepoDetail } from "./pages/SkillsRepoDetail.tsx";
 import { WorkingRepos } from "./pages/WorkingRepos.tsx";
 import { WorkingRepoDetail } from "./pages/WorkingRepoDetail.tsx";
 import { Settings } from "./pages/Settings.tsx";
+import { Diff } from "./pages/Diff.tsx";
 
 export function AppRoutes() {
   return (
@@ -17,6 +18,7 @@ export function AppRoutes() {
       <Route path="/working-repos" element={<WorkingRepos />} />
       <Route path="/working-repos/:id" element={<WorkingRepoDetail />} />
       <Route path="/settings" element={<Settings />} />
+      <Route path="/diff" element={<Diff />} />
     </Routes>
   );
 }
