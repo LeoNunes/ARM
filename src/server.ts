@@ -10,6 +10,8 @@ import type { SkillsRepoStore } from './state/skills-repos';
 import type { WorkingRepoStore } from './state/working-repos';
 import type { InstallsStore } from './state/installs';
 import type { buildRegistries } from './adapters/index';
+import type { ArtifactSnapshotsStore } from './state/artifact-snapshots';
+import type { DismissedNotificationsStore } from './state/notifications';
 
 export interface ServerDeps {
   stateDir: string;
@@ -19,6 +21,8 @@ export interface ServerDeps {
   workingRepos: WorkingRepoStore;
   installs: InstallsStore;
   registries: ReturnType<typeof buildRegistries>;
+  snapshots: ArtifactSnapshotsStore;        // NEW
+  dismissed: DismissedNotificationsStore;   // NEW
 }
 
 export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {

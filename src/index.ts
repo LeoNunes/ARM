@@ -5,6 +5,8 @@ import { SkillsRepoStore } from './state/skills-repos';
 import { WorkingRepoStore } from './state/working-repos';
 import { InstallsStore } from './state/installs';
 import { buildRegistries } from './adapters/index';
+import { ArtifactSnapshotsStore } from './state/artifact-snapshots';
+import { DismissedNotificationsStore } from './state/notifications';
 import { pickFreePort } from './ports';
 import { runAutoUpdatePass } from './engine/update-pass';
 
@@ -17,7 +19,9 @@ async function main() {
   const workingRepos = new WorkingRepoStore(stateDir);
   const installs = new InstallsStore(stateDir);
   const registries = buildRegistries();
-  const app = await buildServer({ stateDir, cacheDir, settings, skillsRepos, workingRepos, installs, registries });
+  const snapshots = new ArtifactSnapshotsStore(stateDir);
+  const dismissed = new DismissedNotificationsStore(stateDir);
+  const app = await buildServer({ stateDir, cacheDir, settings, skillsRepos, workingRepos, installs, registries, snapshots, dismissed });
   const desired = (await settings.read()).mcpPort;
   const port = await pickFreePort(desired);
   if (port !== desired) await settings.update({ mcpPort: port });
