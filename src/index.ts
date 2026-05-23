@@ -6,6 +6,7 @@ import { WorkingRepoStore } from './state/working-repos';
 import { InstallsStore } from './state/installs';
 import { buildRegistries } from './adapters/index';
 import { pickFreePort } from './ports';
+import { runAutoUpdatePass } from './engine/update-pass';
 
 async function main() {
   ensureStateDirs();
@@ -22,6 +23,9 @@ async function main() {
   if (port !== desired) await settings.update({ mcpPort: port });
   await app.listen({ port, host: "127.0.0.1" });
   process.stdout.write(`Skills Manager listening at http://127.0.0.1:${port}\n`);
+  runAutoUpdatePass({ installs, skillsRepos, workingRepos, registries }).catch((err) => {
+    process.stderr.write(`update-pass error: ${(err as Error).message}\n`);
+  });
 }
 
 main().catch((err) => {

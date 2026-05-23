@@ -1,8 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import type { ServerDeps } from '../server';
 import { cloneIntoCache, removeClone } from '../git/clone';
+import { GitClient } from '../git/client';
 import { newId } from '../util/ids';
 import { AppError } from '../util/errors';
+import { runAutoUpdatePass } from '../engine/update-pass';
 
 interface RegisterBody {
   name: string;
@@ -59,8 +61,14 @@ export async function registerSkillsReposRoutes(app: FastifyInstance, deps: Serv
   app.post<{ Params: { id: string } }>("/api/skills-repos/:id/refresh", async (req, reply) => {
     const r = await deps.skillsRepos.get(req.params.id);
     if (!r) return reply.code(404).send({ code: "skills_repo_not_found" });
-    const { GitClient } = await import("../git/client");
     await new GitClient().fetchAndReset(r.localClonePath, r.branch);
-    return deps.skillsRepos.update(r.id, { lastFetchedAt: new Date().toISOString() });
+    const updated = await deps.skillsRepos.update(r.id, { lastFetchedAt: new Date().toISOString() });
+    runAutoUpdatePass({
+      installs: deps.installs,
+      skillsRepos: deps.skillsRepos,
+      workingRepos: deps.workingRepos,
+      registries: deps.registries,
+    }).catch(() => {});
+    return updated;
   });
 }
