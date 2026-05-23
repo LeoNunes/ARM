@@ -14,9 +14,20 @@ export interface Install {
   id: string; artifactKey: string; sourceRepoId: string;
   target: { type: "working-repo"; workingRepoId: string } | { type: "global" };
   agent: "claude-code" | "cursor";
+  artifactType: "skills";
   installedCommitSha: string; autoUpdate: boolean;
   installedFiles: { sourcePath: string; targetPath: string }[];
   installedAt: string;
+}
+export type InstallStatus =
+  | "up-to-date"
+  | "update-available"
+  | "drifted"
+  | "update-available+drifted";
+
+export interface InstallWithStatus extends Install {
+  status: InstallStatus;
+  availableSha: string | null;
 }
 
 async function req<T>(method: string, url: string, body?: unknown, signal?: AbortSignal): Promise<T> {
@@ -49,6 +60,7 @@ export const api = {
   listWorkingRepos: () => req<WorkingRepo[]>("GET", "/api/working-repos"),
   registerWorkingRepo: (body: { name: string; path: string }) => req<WorkingRepo>("POST", "/api/working-repos", body),
   deleteWorkingRepo: (id: string) => req<void>("DELETE", `/api/working-repos/${id}`),
+  refreshWorkingRepo: (id: string) => req<InstallWithStatus[]>("POST", `/api/working-repos/${id}/refresh`),
 
   listArtifacts: (q?: { q?: string; type?: string; sourceRepoId?: string }, signal?: AbortSignal) => {
     const params = new URLSearchParams();
@@ -60,12 +72,16 @@ export const api = {
   },
 
   listInstallsByWorkingRepo: (workingRepoId: string) =>
-    req<Install[]>("GET", `/api/working-repos/${workingRepoId}/installs`),
+    req<InstallWithStatus[]>("GET", `/api/working-repos/${workingRepoId}/installs`),
   createInstall: (body: {
     artifactKey: string;
     target: { type: "working-repo"; workingRepoId: string } | { type: "global" };
     agent?: "claude-code" | "cursor";
     autoUpdate?: boolean;
+    sha?: string;
   }) => req<Install>("POST", "/api/installs", body),
+  updateInstall: (id: string, patch: { autoUpdate: boolean }) =>
+    req<Install>("PATCH", `/api/installs/${id}`, patch),
+  applyInstallUpdate: (id: string) => req<Install>("POST", `/api/installs/${id}/update`),
   deleteInstall: (id: string) => req<void>("DELETE", `/api/installs/${id}`),
 };
