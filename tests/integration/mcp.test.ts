@@ -14,6 +14,8 @@ import path from "node:path";
 import type { ServerDeps } from "../../src/server.ts";
 import type { WorkingRepo } from "../../src/state/schema.ts";
 import { createMcpServer } from "../../src/mcp/tools.ts";
+import { buildServer } from "../../src/server.ts";
+import type { AddressInfo } from "node:net";
 
 async function makeDeps(): Promise<ServerDeps> {
   const stateDir = await tmpDir("skillmgr-mcp-");
@@ -533,5 +535,40 @@ describe("MCP install_artifact", () => {
 
     expect(result.isError).toBe(true);
     expect(parseResult(result).code).toBe("bad_input");
+  });
+});
+
+// ─── HTTP transport smoke ─────────────────────────────────────────────────────
+
+describe("MCP HTTP transport", () => {
+  it("POST /mcp responds to MCP initialize request", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    await app.listen({ port: 0, host: "127.0.0.1" });
+    const { port } = app.server.address() as AddressInfo;
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/mcp`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: { name: "test", version: "1.0.0" },
+          },
+        }),
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.result?.serverInfo?.name).toBe("skills-manager");
+    } finally {
+      await app.close();
+    }
   });
 });
