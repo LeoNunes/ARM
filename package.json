@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@fastify/static": "^7.0.4",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "env-paths": "^3.0.0",
     "fastify": "^4.28.0",
     "open": "^10.1.0",
