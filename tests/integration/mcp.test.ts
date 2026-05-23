@@ -243,7 +243,7 @@ describe("MCP read_artifact_file", () => {
       arguments: { artifactKey, filePath: "ai/skills/foo/SKILL.md" },
     });
     expect(result.isError).toBeFalsy();
-    const text = result.content[0] as { type: string; text: string };
+    const text = (result as { content: Array<{ type: string; text: string }> }).content[0]!;
     expect(text.text).toContain("Content here");
   });
 
@@ -566,7 +566,7 @@ describe("MCP HTTP transport", () => {
         }),
       });
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = await res.json() as { result?: { serverInfo?: { name?: string } } };
       expect(body.result?.serverInfo?.name).toBe("skills-manager");
     } finally {
       await app.close();
