@@ -5,6 +5,7 @@ import { registerSkillsReposRoutes } from './skills-repos';
 import { registerWorkingReposRoutes } from './working-repos';
 import { registerArtifactsRoutes } from './artifacts';
 import { registerInstallsRoutes } from './installs';
+import { registerNotificationsRoutes } from './notifications';
 import { AppError } from '../util/errors';
 
 export async function registerRoutes(app: FastifyInstance, deps: ServerDeps): Promise<void> {
@@ -28,4 +29,5 @@ export async function registerRoutes(app: FastifyInstance, deps: ServerDeps): Pr
   await registerWorkingReposRoutes(app, deps);
   await registerArtifactsRoutes(app, deps);
   await registerInstallsRoutes(app, deps);
+  await registerNotificationsRoutes(app, deps);
 }
