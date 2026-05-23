@@ -369,3 +369,169 @@ describe("MCP list_installs", () => {
     expect(parseResult(cursorResult)).toHaveLength(0);
   });
 });
+
+// ─── install_artifact ────────────────────────────────────────────────────────
+
+describe("MCP install_artifact", () => {
+  async function seedSource(deps: ServerDeps) {
+    const fx = await buildFixtureRepo([
+      { message: "init", files: { "ai/skills/foo/SKILL.md": "# Foo\n" } },
+    ]);
+    const cloneDest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fx.fileUrl, cloneDest, "main");
+    const repo = await deps.skillsRepos.add({
+      name: "src", gitUrl: fx.fileUrl, branch: "main",
+      artifactPaths: { skills: ["ai/skills"] }, presetId: null,
+      localClonePath: cloneDest, lastFetchedAt: null,
+    });
+    return { fx, repo, artifactKey: `${repo.id}:ai/skills/foo` };
+  }
+
+  it("installs an artifact into a working repo (happy path)", async () => {
+    const deps = await makeDeps();
+    const { artifactKey } = await seedSource(deps);
+    const wr = await makeWorkingRepo();
+    const savedWr = await deps.workingRepos.add({ name: wr.name, path: wr.path, addedAt: wr.addedAt });
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "install_artifact",
+      arguments: {
+        artifactKey,
+        target: { type: "working-repo", workingRepoId: savedWr.id },
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const install = parseResult(result);
+    expect(install.id).toBeDefined();
+    expect(install.artifactKey).toBe(artifactKey);
+    expect(install.agent).toBe("claude-code"); // defaults to favoriteAgent
+  });
+
+  it("defaults agent to settings.favoriteAgent", async () => {
+    const deps = await makeDeps();
+    await deps.settings.update({ favoriteAgent: "cursor" });
+    const { artifactKey } = await seedSource(deps);
+    const wr = await makeWorkingRepo();
+    const savedWr = await deps.workingRepos.add({ name: wr.name, path: wr.path, addedAt: wr.addedAt });
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "install_artifact",
+      arguments: {
+        artifactKey,
+        target: { type: "working-repo", workingRepoId: savedWr.id },
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(parseResult(result).agent).toBe("cursor");
+  });
+
+  it("returns already_installed when same triple exists", async () => {
+    const deps = await makeDeps();
+    const { artifactKey } = await seedSource(deps);
+    const wr = await makeWorkingRepo();
+    const savedWr = await deps.workingRepos.add({ name: wr.name, path: wr.path, addedAt: wr.addedAt });
+    const { client } = await makeMcpClient(deps);
+    const target = { type: "working-repo", workingRepoId: savedWr.id };
+
+    await client.callTool({ name: "install_artifact", arguments: { artifactKey, target } });
+    const result = await client.callTool({ name: "install_artifact", arguments: { artifactKey, target } });
+
+    expect(result.isError).toBe(true);
+    expect(parseResult(result).code).toBe("already_installed");
+  });
+
+  it("allows two installs of same artifact for different agents", async () => {
+    const deps = await makeDeps();
+    const { artifactKey } = await seedSource(deps);
+    const wr = await makeWorkingRepo();
+    const savedWr = await deps.workingRepos.add({ name: wr.name, path: wr.path, addedAt: wr.addedAt });
+    const { client } = await makeMcpClient(deps);
+    const target = { type: "working-repo", workingRepoId: savedWr.id };
+
+    const r1 = await client.callTool({
+      name: "install_artifact",
+      arguments: { artifactKey, target, agent: "claude-code" },
+    });
+    const r2 = await client.callTool({
+      name: "install_artifact",
+      arguments: { artifactKey, target, agent: "cursor" },
+    });
+
+    expect(r1.isError).toBeFalsy();
+    expect(r2.isError).toBeFalsy();
+  });
+
+  it("returns working_repo_not_found for unknown workingRepoId", async () => {
+    const deps = await makeDeps();
+    const { artifactKey } = await seedSource(deps);
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "install_artifact",
+      arguments: {
+        artifactKey,
+        target: { type: "working-repo", workingRepoId: "nonexistent" },
+      },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(parseResult(result).code).toBe("working_repo_not_found");
+  });
+
+  it("returns artifact_not_found for unknown artifactKey", async () => {
+    const deps = await makeDeps();
+    const wr = await makeWorkingRepo();
+    const savedWr = await deps.workingRepos.add({ name: wr.name, path: wr.path, addedAt: wr.addedAt });
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "install_artifact",
+      arguments: {
+        artifactKey: "bad-repo-id:ai/skills/nope",
+        target: { type: "working-repo", workingRepoId: savedWr.id },
+      },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(parseResult(result).code).toBe("artifact_not_found");
+  });
+
+  it("returns unsupported_combination when agent does not support type×scope", async () => {
+    const deps = await makeDeps();
+    const { artifactKey } = await seedSource(deps);
+    const wr = await makeWorkingRepo();
+    const savedWr = await deps.workingRepos.add({ name: wr.name, path: wr.path, addedAt: wr.addedAt });
+
+    // Stub claude-code to not support any combination
+    const origAgent = deps.registries.agents.get("claude-code");
+    const stubbedAgent = { ...origAgent, supports: () => false };
+    deps.registries.agents.register(stubbedAgent);
+
+    const { client } = await makeMcpClient(deps);
+    const result = await client.callTool({
+      name: "install_artifact",
+      arguments: { artifactKey, target: { type: "working-repo", workingRepoId: savedWr.id } },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(parseResult(result).code).toBe("unsupported_combination");
+  });
+
+  it("returns bad_input when workingRepoId missing for working-repo target", async () => {
+    const deps = await makeDeps();
+    const { artifactKey } = await seedSource(deps);
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "install_artifact",
+      arguments: { artifactKey, target: { type: "working-repo" } },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(parseResult(result).code).toBe("bad_input");
+  });
+});

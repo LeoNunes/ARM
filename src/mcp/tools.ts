@@ -9,6 +9,9 @@ import type { DiscoveredArtifact } from "../adapters/types.js";
 import { checkForUpdates } from "../engine/update-check.js";
 import { checkForDrift } from "../engine/drift-check.js";
 import { computeInstallStatus } from "../engine/status.js";
+import { installArtifact } from "../engine/install.js";
+import { AppError } from "../util/errors.js";
+import type { AgentId, InstallTarget } from "../state/schema.js";
 
 function toolError(code: string, message: string) {
   return {
@@ -165,7 +168,84 @@ export function createMcpServer(deps: ServerDeps): McpServer {
     },
   );
 
-  // remaining tools added in later tasks
+  server.tool(
+    "install_artifact",
+    "Install an artifact into a target (create-only). Agent defaults to favoriteAgent.",
+    {
+      artifactKey: z.string(),
+      target: z.object({
+        type: z.enum(["working-repo", "global"]),
+        workingRepoId: z.string().optional(),
+      }),
+      agent: z.string().optional().describe("claude-code or cursor; defaults to favoriteAgent"),
+      sha: z.string().optional().describe("Source SHA to install at; defaults to latest"),
+      autoUpdate: z.boolean().optional(),
+    },
+    async ({ artifactKey, target, agent: agentParam, sha, autoUpdate }) => {
+      try {
+        const settings = await deps.settings.read();
+        const agentId = (agentParam ?? settings.favoriteAgent) as AgentId | undefined;
+        if (!agentId) {
+          return toolError("agent_not_specified", "No agent specified and no favoriteAgent configured");
+        }
+
+        let agent;
+        try {
+          agent = deps.registries.agents.get(agentId);
+        } catch {
+          return toolError("bad_input", `unknown agent: ${agentId}`);
+        }
+
+        if (target.type === "working-repo" && !target.workingRepoId) {
+          return toolError("bad_input", "workingRepoId required for working-repo target");
+        }
+
+        const installTarget: InstallTarget =
+          target.type === "working-repo"
+            ? { type: "working-repo", workingRepoId: target.workingRepoId! }
+            : { type: "global" };
+
+        const sources = await deps.skillsRepos.list();
+        const [sourceRepoId] = artifactKey.split(":", 1);
+        const skillsRepo = sources.find((s) => s.id === sourceRepoId);
+        if (!skillsRepo) {
+          return toolError("artifact_not_found", `source repo not found: ${sourceRepoId}`);
+        }
+
+        const allArtifacts = await discoverArtifacts(skillsRepo, deps.registries.types);
+        const artifact = allArtifacts.find((a) => a.artifactKey === artifactKey);
+        if (!artifact) return toolError("artifact_not_found", artifactKey);
+
+        let workingRepo;
+        if (installTarget.type === "working-repo") {
+          workingRepo = await deps.workingRepos.get(installTarget.workingRepoId);
+          if (!workingRepo) return toolError("working_repo_not_found", installTarget.workingRepoId);
+        }
+
+        const existing = await deps.installs.findExisting(artifactKey, installTarget, agentId);
+        if (existing) {
+          return toolError("already_installed", `${artifactKey} already installed for ${agentId}`);
+        }
+
+        const targetInstalls = workingRepo
+          ? await deps.installs.listByWorkingRepo(workingRepo.id)
+          : [];
+        const resolvedSha = sha ?? artifact.lastTouchedSha;
+        if (!resolvedSha) return toolError("bad_input", "could not resolve SHA for artifact");
+
+        const record = await installArtifact({
+          artifact, skillsRepo, target: installTarget, workingRepo, agent,
+          sha: resolvedSha, autoUpdate: autoUpdate ?? false,
+          existingInstallsInTarget: targetInstalls,
+        });
+        const persisted = await deps.installs.add(record);
+        return { content: [{ type: "text" as const, text: JSON.stringify(persisted) }] };
+      } catch (err) {
+        if (err instanceof AppError) return toolError(err.code, err.message);
+        throw err;
+      }
+    },
+  );
 
   return server;
 }
