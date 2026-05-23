@@ -5,6 +5,7 @@ import { GitClient } from '../git/client';
 import { newId } from '../util/ids';
 import { AppError } from '../util/errors';
 import { runAutoUpdatePass } from '../engine/update-pass';
+import { discoverArtifacts } from '../discovery/discover';
 
 interface RegisterBody {
   name: string;
@@ -43,6 +44,9 @@ export async function registerSkillsReposRoutes(app: FastifyInstance, deps: Serv
         await deps.skillsRepos.update(created.id, { localClonePath: newPath });
         created.localClonePath = newPath;
       }
+      // Seed snapshot so existing artifacts don't appear as "new"
+      const artifacts = await discoverArtifacts(created, deps.registries.types);
+      await deps.snapshots.initSnapshot(created.id, artifacts.map((a) => a.artifactKey));
     } catch (err) {
       await removeClone(localClonePath).catch(() => {});
       throw err;
