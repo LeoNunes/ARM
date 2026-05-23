@@ -30,6 +30,48 @@ export interface InstallWithStatus extends Install {
   availableSha: string | null;
 }
 
+export type DiffMode = "version-vs-version" | "installed-vs-latest" | "installed-vs-drifted";
+
+export interface NewArtifactNotification {
+  kind: "new-artifact";
+  key: string;
+  artifactKey: string;
+  sourceRepoId: string;
+  sourceName: string;
+  sha: string;
+  name: string;
+  description: string | null;
+}
+
+export interface NotificationsResponse {
+  newArtifacts: NewArtifactNotification[];
+}
+
+export interface FileDiff {
+  path: string;
+  fromContent: string | null;
+  toContent: string | null;
+  changed: boolean;
+}
+
+export interface DiffResponse {
+  artifactKey: string;
+  artifactName: string;
+  fromSha: string;
+  toSha: string;
+  mode: DiffMode;
+  label: string;
+  files: FileDiff[];
+  primaryAction: "update" | "re-apply" | null;
+  installId: string | null;
+}
+
+export interface CommitSummary {
+  sha: string;
+  date: string;
+  subject: string;
+}
+
 async function req<T>(method: string, url: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const res = await fetch(url, {
     method,
@@ -84,4 +126,29 @@ export const api = {
     req<Install>("PATCH", `/api/installs/${id}`, patch),
   applyInstallUpdate: (id: string) => req<Install>("POST", `/api/installs/${id}/update`),
   deleteInstall: (id: string) => req<void>("DELETE", `/api/installs/${id}`),
+
+  reapplyInstall: (id: string) => req<Install>("POST", `/api/installs/${id}/reapply`),
+
+  getNotifications: () => req<NotificationsResponse>("GET", "/api/notifications"),
+  dismissNotification: (key: string) => req<void>("POST", "/api/notifications/dismiss", { key }),
+
+  getDiff: (params:
+    | { mode: "installed-vs-latest"; installId: string }
+    | { mode: "installed-vs-drifted"; installId: string }
+    | { mode: "version-vs-version"; artifactKey: string; fromSha: string; toSha: string }
+  ) => {
+    const qs = new URLSearchParams();
+    qs.set("mode", params.mode);
+    if (params.mode === "installed-vs-latest" || params.mode === "installed-vs-drifted") {
+      qs.set("installId", params.installId);
+    } else {
+      qs.set("artifactKey", encodeURIComponent(params.artifactKey));
+      qs.set("fromSha", params.fromSha);
+      qs.set("toSha", params.toSha);
+    }
+    return req<DiffResponse>("GET", `/api/diff?${qs.toString()}`);
+  },
+
+  getArtifactHistory: (artifactKey: string, limit = 20) =>
+    req<CommitSummary[]>("GET", `/api/artifacts/${encodeURIComponent(artifactKey)}/history?limit=${limit}`),
 };
