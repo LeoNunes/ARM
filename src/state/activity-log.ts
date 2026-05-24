@@ -21,7 +21,7 @@ export class ActivityLogStore {
       entries = entries.filter((e) => e.category === filter.category);
     }
     if (filter?.limit !== undefined) {
-      entries = entries.slice(0, filter.limit);
+      entries = entries.slice(0, Math.max(0, filter.limit));
     }
     return entries;
   }
