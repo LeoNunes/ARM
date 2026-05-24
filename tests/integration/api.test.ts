@@ -333,3 +333,51 @@ describe("API POST /working-repos/:id/refresh", () => {
     expect(res.statusCode).toBe(404);
   });
 });
+
+describe("Activity log instrumentation", () => {
+  it("POST /api/installs writes an install activity entry", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    const fx = await buildFixtureRepo([
+      { message: "init", files: { "ai/skills/foo/SKILL.md": "# Foo\n" } },
+    ]);
+    // Register skills repo
+    const srcRes = await app.inject({
+      method: "POST", url: "/api/skills-repos",
+      payload: { name: "src", gitUrl: fx.fileUrl, branch: "main", artifactPaths: { skills: ["ai/skills"] } },
+    });
+    const src = srcRes.json();
+    // Register working repo
+    const { mkdtemp } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const wrPath = await mkdtemp(tmpdir() + "/wr-test-");
+    const sg = simpleGit(wrPath);
+    await sg.init();
+    await sg.addConfig("user.email", "a@b");
+    await sg.addConfig("user.name", "t");
+    await sg.addConfig("commit.gpgsign", "false");
+    await sg.commit("seed", [], { "--allow-empty": null });
+    const wrRes = await app.inject({
+      method: "POST", url: "/api/working-repos",
+      payload: { name: "my-repo", path: wrPath },
+    });
+    const wr = wrRes.json();
+    // List artifacts to get artifact key
+    const arts = await app.inject({ method: "GET", url: `/api/artifacts?sourceRepoId=${src.id}` });
+    const artifact = arts.json()[0];
+    // Install
+    await app.inject({
+      method: "POST", url: "/api/installs",
+      payload: { artifactKey: artifact.artifactKey, target: { type: "working-repo", workingRepoId: wr.id } },
+    });
+    // Give the async log write a moment to complete
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Check activity log
+    const log = await app.inject({ method: "GET", url: "/api/activity-log?category=install" });
+    const entries = log.json();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].category).toBe("install");
+    expect(entries[0].summary).toContain("Installed");
+    expect(entries[0].artifactKey).toBe(artifact.artifactKey);
+  });
+});

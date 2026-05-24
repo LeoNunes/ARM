@@ -11,7 +11,7 @@ import { AppError } from "../util/errors";
 import type { AgentId, Install, InstallTarget } from "../state/schema";
 
 function artifactDisplayName(artifactKey: string): string {
-  return artifactKey.split(":").slice(1).join(":").split("/").pop() ?? artifactKey;
+  return artifactKey.split(":").slice(1).join(":").split("/").pop() || artifactKey;
 }
 
 interface CreateBody {
