@@ -12,6 +12,7 @@ import type { InstallsStore } from './state/installs';
 import type { buildRegistries } from './adapters/index';
 import type { ArtifactSnapshotsStore } from './state/artifact-snapshots';
 import type { DismissedNotificationsStore } from './state/notifications';
+import type { ActivityLogStore } from './state/activity-log';
 
 export interface ServerDeps {
   stateDir: string;
@@ -23,6 +24,7 @@ export interface ServerDeps {
   registries: ReturnType<typeof buildRegistries>;
   snapshots: ArtifactSnapshotsStore;        // NEW
   dismissed: DismissedNotificationsStore;   // NEW
+  activityLog: ActivityLogStore;
 }
 
 export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
