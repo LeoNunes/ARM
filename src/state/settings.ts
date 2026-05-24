@@ -15,11 +15,11 @@ export class SettingsStore {
     this.store = new JsonStore<SettingsFile>(path.join(stateDir, "settings.json"), DEFAULTS);
   }
   read(): Promise<SettingsFile> {
-    return this.store.read();
+    return this.store.read().then(data => ({ ...DEFAULTS, ...data }));
   }
   async update(patch: Partial<SettingsFile>): Promise<SettingsFile> {
     const current = await this.store.read();
-    const next = { ...current, ...patch };
+    const next = { ...DEFAULTS, ...current, ...patch };
     await this.store.write(next);
     return next;
   }

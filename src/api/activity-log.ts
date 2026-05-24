@@ -7,9 +7,11 @@ export async function registerActivityLogRoutes(app: FastifyInstance, deps: Serv
     "/api/activity-log",
     async (req) => {
       const { category, limit } = req.query;
+      const limitRaw = limit !== undefined ? parseInt(limit, 10) : undefined;
+      const safeLimit = limitRaw !== undefined && !isNaN(limitRaw) ? limitRaw : undefined;
       return deps.activityLog.list({
         category: category as ActivityCategory | undefined,
-        limit: limit !== undefined ? parseInt(limit, 10) : 50,
+        limit: safeLimit,
       });
     },
   );
