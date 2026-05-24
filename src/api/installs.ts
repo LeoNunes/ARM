@@ -10,6 +10,10 @@ import { discoverArtifacts } from "../discovery/discover";
 import { AppError } from "../util/errors";
 import type { AgentId, Install, InstallTarget } from "../state/schema";
 
+function artifactDisplayName(artifactKey: string): string {
+  return artifactKey.split(":").slice(1).join(":").split("/").pop() ?? artifactKey;
+}
+
 interface CreateBody {
   artifactKey: string;
   target: InstallTarget;
@@ -96,6 +100,15 @@ export async function registerInstallsRoutes(app: FastifyInstance, deps: ServerD
       existingInstallsInTarget: targetInstalls,
     });
     const persisted = await deps.installs.add(record);
+    const targetName = workingRepo ? `'${workingRepo.name}'` : `globally (${agentId})`;
+    deps.activityLog?.add({
+      ts: new Date().toISOString(),
+      category: "install",
+      summary: `Installed '${artifact.name}' into ${targetName}`,
+      artifactKey: body.artifactKey,
+      workingRepoId: workingRepo?.id,
+      sourceRepoId: skillsRepo.id,
+    }).catch(() => {});
     return reply.code(201).send(persisted);
   });
 
@@ -132,6 +145,15 @@ export async function registerInstallsRoutes(app: FastifyInstance, deps: ServerD
       otherInstallsInTarget: others,
     });
     const updated = await deps.installs.update(install.id, patch);
+    deps.activityLog?.add({
+      ts: new Date().toISOString(),
+      category: "install",
+      summary: `Updated '${artifactDisplayName(install.artifactKey)}' in '${wr.name}'`,
+      detail: `${install.installedCommitSha.slice(0, 7)} → ${updateResult.availableSha!.slice(0, 7)}`,
+      artifactKey: install.artifactKey,
+      workingRepoId: wr.id,
+      sourceRepoId: install.sourceRepoId,
+    }).catch(() => {});
     return updated;
   });
 
@@ -153,6 +175,14 @@ export async function registerInstallsRoutes(app: FastifyInstance, deps: ServerD
       otherInstallsInTarget: others,
     });
     const updated = await deps.installs.update(install.id, patch);
+    deps.activityLog?.add({
+      ts: new Date().toISOString(),
+      category: "re-apply",
+      summary: `Re-applied '${artifactDisplayName(install.artifactKey)}' in '${wr.name}'`,
+      artifactKey: install.artifactKey,
+      workingRepoId: wr.id,
+      sourceRepoId: install.sourceRepoId,
+    }).catch(() => {});
     return updated;
   });
 
@@ -172,6 +202,15 @@ export async function registerInstallsRoutes(app: FastifyInstance, deps: ServerD
     } finally {
       await deps.installs.remove(install.id);
     }
+    const wrName = workingRepo ? `'${workingRepo.name}'` : "global";
+    deps.activityLog?.add({
+      ts: new Date().toISOString(),
+      category: "uninstall",
+      summary: `Uninstalled '${artifactDisplayName(install.artifactKey)}' from ${wrName}`,
+      artifactKey: install.artifactKey,
+      workingRepoId: install.target.type === "working-repo" ? install.target.workingRepoId : undefined,
+      sourceRepoId: install.sourceRepoId,
+    }).catch(() => {});
     return reply.code(204).send();
   });
 }
