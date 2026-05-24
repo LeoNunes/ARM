@@ -63,7 +63,7 @@ A single developer running on their own machine. Out of scope for MVP: multi-use
 
 ### 4.5 Update detection
 
-- The backend fetches new commits from registered skills repositories (on demand and on app launch).
+- The backend fetches new commits from registered skills repositories (on demand, on app launch, and on a configurable background interval — see §4.10).
 - For each install, the system determines whether new commits exist in the source repo that touch the installed artifact's files.
 - If yes, the install is marked **update available**, surfaced in the UI.
 - **Auto-update behavior:**
@@ -96,6 +96,8 @@ A single overview page surfaces:
 - For each working repository, the artifacts installed in it and their status: up-to-date, update available, or drifted. Working repos with non-up-to-date installs show a notification dot.
 - **New artifacts** that have appeared in registered skills repositories, shown as dismissible cards. On first registration of a source repo, all current artifacts are considered "known"; only artifacts that appear after registration are surfaced as new.
 - Notifications for new source-repo artifacts can be **dismissed**.
+- **Recent activity panel** showing the 10 most recent activity log entries (see §4.11), with a category filter and a link to the full Activity page.
+- The page re-polls the API every 5 seconds to keep displayed state current while the app is open.
 
 ### 4.9 Local MCP server (for AI agents)
 
@@ -114,16 +116,38 @@ The backend exposes a local Model Context Protocol server so AI agents can inter
 The product stores a small set of user-level settings that influence default behavior across the application.
 
 - **Favorite agent.** The user picks one of the supported agents (e.g., Cursor or Claude Code) as their default. Any UI flow that needs an agent to be selected — installing into a working repo, installing globally, MCP install calls — pre-fills with this agent. The user can override the agent on any individual install.
+- **Auto-refresh enabled.** Toggles the background refresh loop (default: on). When enabled, the backend periodically fetches all registered skills repositories and runs the auto-update pass.
+- **Refresh interval.** How often the background refresh loop runs, in minutes (default: 30, minimum: 1). Changes take effect at the next tick without restarting the app.
 - Settings can be viewed and changed from a dedicated settings area in the UI.
+
+### 4.11 Activity log
+
+A persistent record of all write operations performed by the application, kept on disk across sessions and capped at 500 entries (oldest pruned first).
+
+Each entry records a timestamp, a category, a human-readable summary, and optional detail (e.g. old SHA → new SHA for auto-updates). Categories:
+
+| Category | When written |
+|----------|-------------|
+| `install` | An artifact is installed or manually updated |
+| `uninstall` | An artifact is uninstalled |
+| `re-apply` | An install is re-applied to overwrite local drift |
+| `refresh` | A skills repository is fetched (manual or background) |
+| `auto-update` | An install with auto-update enabled is updated by the background loop |
+
+The activity log is surfaced in two places:
+- **Dashboard panel** — the 10 most recent entries with a category filter and a "View all" link.
+- **Activity page** — the full log (up to 500 entries) with a category filter and per-entry delete.
 
 ## 5. Capabilities by surface
 
 ### 5.1 Backend supports
 
-- Storing and managing all state: registered skills repos, registered working repos, install records (including the source commit SHA for each install), dismissed notifications, per-install auto-update flags, application settings (e.g., favorite agent), presets, artifact snapshots.
+- Storing and managing all state: registered skills repos, registered working repos, install records (including the source commit SHA for each install), dismissed notifications, per-install auto-update flags, application settings (e.g., favorite agent, auto-refresh interval), presets, artifact snapshots, activity log.
 - Performing all git operations against skills repositories (clone, fetch, commit walking, file lookup at a SHA) and computing per-artifact "last touched commit" SHAs.
 - Performing install, uninstall, update, re-apply, and drift-check operations against working repositories.
 - Implementing the file-level "ignore in working repo" mechanism without touching tracked files in those repos.
+- Running a configurable background refresh loop that periodically fetches skills repos and applies auto-updates.
+- Writing categorized activity log entries for all write operations.
 - Exposing an API for the frontend.
 - Exposing the local MCP server.
 
@@ -134,15 +158,16 @@ The product stores a small set of user-level settings that influence default beh
 - Managing registered working repositories: add, edit, remove.
 - Installing, uninstalling, and updating artifacts to working repositories or to the user-global location; toggling auto-update per install; choosing the target agent (pre-filled from the favorite-agent setting).
 - Viewing artifact version history and side-by-side diffs (version-to-version, installed-vs-latest, installed-vs-drifted).
-- Dashboard with status indicators and dismissible new-artifact notifications.
-- Viewing and editing application settings (favorite agent, etc.).
+- Dashboard with status indicators, dismissible new-artifact notifications, and a recent activity panel.
+- Activity page showing the full activity log with category filter and per-entry delete.
+- Viewing and editing application settings (favorite agent, auto-refresh interval, etc.).
 - Viewing MCP server status and the configuration snippet to paste into an agent's MCP configuration.
 
 ## 6. Non-functional requirements
 
 - **Cross-platform.** Windows, macOS, and Linux.
 - **Local-only.** Runs entirely on the user's machine. No external services required for core functionality.
-- **On-demand.** The application runs only when the user opens it and stops when the user closes it. There is no always-on background service in MVP.
+- **On-demand.** The application runs only when the user opens it and stops when the user closes it. There is no always-on background service. When the application is running, a configurable background refresh loop periodically fetches skills repositories and applies auto-updates.
 - **Non-intrusive to working repos.** Installation must not produce any tracked git changes in the working repo (the repo's `.gitignore` and other tracked files are not modified).
 
 ## 7. Out of scope for MVP

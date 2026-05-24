@@ -55,7 +55,11 @@ The backend (`src/`) is a Fastify server that serves the compiled React SPA from
 
 **Install engine.** `src/engine/` contains pure functions for install, uninstall, update, re-apply, drift check, and update check. These operate on plain data types from `src/state/schema.ts` and shell out to git via `src/git/`. The API layer in `src/api/` is a thin wrapper that reads/writes state stores and calls the engine.
 
-**State stores.** All state is JSON files in the user-data directory, managed by `JsonStore<T>` (`src/state/store.ts`) which does atomic tmp-file-then-rename writes. Each domain object (skills repos, working repos, installs, settings, snapshots, dismissed notifications) has its own typed store class.
+**Background refresh loop.** `src/engine/refresh-loop.ts` runs a `setTimeout`-based loop while the app is open. Each tick fetches all registered skills repos via `GitClient.fetchAndReset`, runs the auto-update pass, and writes categorized entries to the activity log. The interval (default 30 min) and enabled state are user-configurable from the Settings page.
+
+**Activity log.** All write operations (install, uninstall, re-apply, refresh, auto-update) append a categorized entry to `ActivityLogStore` (backed by `activityLog.json`, capped at 500 entries). The Dashboard shows the 10 most recent entries; a dedicated Activity page (`/activity`) shows the full log with per-entry delete.
+
+**State stores.** All state is JSON files in the user-data directory, managed by `JsonStore<T>` (`src/state/store.ts`) which does atomic tmp-file-then-rename writes. Each domain object (skills repos, working repos, installs, settings, snapshots, dismissed notifications, activity log) has its own typed store class.
 
 **Git operations.** Skills repos are cloned into a cache directory under the state dir. The engine reads file content at specific SHAs via `git show` and detects updates via `git log <sha>..HEAD -- <files>`. Installed files are hidden from the working repo's git via a managed fenced block in `.git/info/exclude` — no tracked files in the working repo are ever modified.
 
@@ -66,18 +70,19 @@ src/
   index.ts            entry: starts server, opens browser, runs auto-update pass
   server.ts           Fastify setup, ServerDeps interface
   api/                REST route handlers (one file per resource)
-  engine/             install, uninstall, update, drift, apply-update, update-pass
+  engine/             install, uninstall, update, drift, apply-update, update-pass, refresh-loop
   git/                client wrapper, show (file-at-sha), log (commit walking)
   adapters/           AgentAdapter + ArtifactTypeAdapter interfaces, registries,
                         agents/claude-code.ts, agents/cursor.ts,
                         artifact-types/skills.ts
   discovery/          discoverArtifacts — walks SkillsRepo config → DiscoveredArtifact[]
   mcp/                tools.ts (createMcpServer), server.ts (Fastify /mcp routes)
-  state/              schema.ts, store.ts, and one store class per entity
+  state/              schema.ts, store.ts, and one store class per entity (including activity-log.ts)
   util/               errors.ts (AppError), ids.ts
 web/                  React SPA (Vite)
   api.ts              fetch wrappers + all TS types shared with FE
-  pages/              Dashboard, Browse, SkillsRepos, WorkingRepos, Settings, Diff
+  hooks/              useAutoRefresh (5 s polling hook)
+  pages/              Dashboard, Browse, SkillsRepos, WorkingRepos, Settings, Diff, ActivityLog
   components/         Sidebar, InstallModal, RegisterModal(s), StatusPill
 tests/
   helpers/            tmp-dir, build-fixture-repo (real git repos on disk)
