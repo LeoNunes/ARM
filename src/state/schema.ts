@@ -1,9 +1,29 @@
 export type AgentId = "claude-code" | "cursor";
 export type ArtifactTypeId = "skills"; // expanded in later slices
 
+export type ActivityCategory =
+  | "auto-update"
+  | "install"
+  | "uninstall"
+  | "re-apply"
+  | "refresh";
+
+export interface ActivityLogEntry {
+  id: string;
+  ts: string;
+  category: ActivityCategory;
+  summary: string;
+  detail?: string;
+  artifactKey?: string;
+  workingRepoId?: string;
+  sourceRepoId?: string;
+}
+
 export interface SettingsFile {
   favoriteAgent: AgentId;
   mcpPort: number;
+  autoRefreshEnabled: boolean;
+  autoRefreshIntervalMinutes: number;
 }
 
 export interface SkillsRepo {

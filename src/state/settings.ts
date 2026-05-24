@@ -2,7 +2,12 @@ import path from "node:path";
 import { JsonStore } from './store';
 import type { SettingsFile } from './schema';
 
-const DEFAULTS: SettingsFile = { favoriteAgent: "claude-code", mcpPort: 7747 };
+const DEFAULTS: SettingsFile = {
+  favoriteAgent: "claude-code",
+  mcpPort: 7747,
+  autoRefreshEnabled: true,
+  autoRefreshIntervalMinutes: 30,
+};
 
 export class SettingsStore {
   private store: JsonStore<SettingsFile>;
