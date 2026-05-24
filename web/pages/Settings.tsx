@@ -6,15 +6,20 @@ export function Settings() {
   const [error, setError] = useState<string | null>(null);
   const [portInput, setPortInput] = useState<string>("");
   const [copied, setCopied] = useState<"claude-code" | "cursor" | null>(null);
+  // runningPort tracks the port the server is actually listening on (set at load time,
+  // not updated on save — the server must restart to pick up a new port).
+  const [runningPort, setRunningPort] = useState<number | null>(null);
+  const [restartNeeded, setRestartNeeded] = useState(false);
 
   useEffect(() => {
     api.getSettings().then((settings) => {
       setS(settings);
       setPortInput(String(settings.mcpPort));
+      setRunningPort(settings.mcpPort);
     });
   }, []);
 
-  const mcpUrl = s ? `http://127.0.0.1:${s.mcpPort}/mcp` : "";
+  const mcpUrl = runningPort ? `http://127.0.0.1:${runningPort}/mcp` : "";
 
   const copySnippet = useCallback(
     (agent: "claude-code" | "cursor") => {
@@ -43,6 +48,7 @@ export function Settings() {
       setS(updated);
       setPortInput(String(updated.mcpPort));
       setError(null);
+      if (updated.mcpPort !== runningPort) setRestartNeeded(true);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -83,6 +89,11 @@ export function Settings() {
         <div className="field">
           <label>URL</label>
           <code>{mcpUrl}</code>
+          {restartNeeded && (
+            <p style={{ fontSize: 11, color: "var(--warning, #856404)", margin: "4px 0 0" }}>
+              Restart the app for the new port to take effect.
+            </p>
+          )}
         </div>
         <div className="field">
           <label>Port</label>

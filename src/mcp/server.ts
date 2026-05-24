@@ -12,8 +12,11 @@ export function registerMcpServer(app: FastifyInstance, deps: ServerDeps): void 
     });
     await server.connect(transport);
     reply.hijack();
-    await transport.handleRequest(req.raw, reply.raw, req.body);
-    await server.close();
+    try {
+      await transport.handleRequest(req.raw, reply.raw, req.body);
+    } finally {
+      await server.close();
+    }
   });
 
   app.get("/mcp", async (req, reply) => {
@@ -21,8 +24,11 @@ export function registerMcpServer(app: FastifyInstance, deps: ServerDeps): void 
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     await server.connect(transport);
     reply.hijack();
-    await transport.handleRequest(req.raw, reply.raw);
-    await server.close();
+    try {
+      await transport.handleRequest(req.raw, reply.raw);
+    } finally {
+      await server.close();
+    }
   });
 
   app.delete("/mcp", async (_req, reply) => {
