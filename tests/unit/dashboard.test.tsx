@@ -65,6 +65,7 @@ function makeMockFetch(overrides: {
       const list = installs[wrMatch[1]!] ?? [];
       return new Response(JSON.stringify(list), { status: 200 });
     }
+    if (url.startsWith("/api/activity-log")) return new Response(JSON.stringify([]), { status: 200 });
     return new Response("{}", { status: 200 });
   }) as typeof fetch;
 }
