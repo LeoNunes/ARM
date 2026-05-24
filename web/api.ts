@@ -4,7 +4,31 @@ export interface SkillsRepo {
   presetId: string | null; localClonePath: string; lastFetchedAt: string | null;
 }
 export interface WorkingRepo { id: string; name: string; path: string; addedAt: string; }
-export interface Settings { favoriteAgent: "claude-code" | "cursor"; mcpPort: number; }
+export interface Settings {
+  favoriteAgent: "claude-code" | "cursor";
+  mcpPort: number;
+  autoRefreshEnabled: boolean;
+  autoRefreshIntervalMinutes: number;
+}
+
+export type ActivityCategory =
+  | "auto-update"
+  | "install"
+  | "uninstall"
+  | "re-apply"
+  | "refresh";
+
+export interface ActivityLogEntry {
+  id: string;
+  ts: string;
+  category: ActivityCategory;
+  summary: string;
+  detail?: string;
+  artifactKey?: string;
+  workingRepoId?: string;
+  sourceRepoId?: string;
+}
+
 export interface Artifact {
   artifactKey: string; sourceRepoId: string; type: "skills";
   name: string; description: string | null;
@@ -91,6 +115,14 @@ async function req<T>(method: string, url: string, body?: unknown, signal?: Abor
 export const api = {
   getSettings: () => req<Settings>("GET", "/api/settings"),
   updateSettings: (patch: Partial<Settings>) => req<Settings>("PATCH", "/api/settings", patch),
+  getActivityLog: (params?: { category?: ActivityCategory; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.category) qs.set("category", params.category);
+    if (params?.limit !== undefined) qs.set("limit", String(params.limit));
+    const q = qs.toString();
+    return req<ActivityLogEntry[]>("GET", `/api/activity-log${q ? `?${q}` : ""}`);
+  },
+  deleteActivityLogEntry: (id: string) => req<void>("DELETE", `/api/activity-log/${id}`),
 
   listSkillsRepos: () => req<SkillsRepo[]>("GET", "/api/skills-repos"),
   getSkillsRepo: (id: string) => req<SkillsRepo>("GET", `/api/skills-repos/${id}`),
