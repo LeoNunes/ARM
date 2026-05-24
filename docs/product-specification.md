@@ -1,5 +1,3 @@
-claude --resume dd873664-229d-4342-a77e-f399bb02bc6a
-
 # Skills Manager — Product Specification
 
 > A locally-run application for managing AI-agent artifacts (skills, rules, and similar) across multiple source repositories and multiple working repositories, without polluting those working repositories' git history.
@@ -95,21 +93,21 @@ A single developer running on their own machine. Out of scope for MVP: multi-use
 A single overview page surfaces:
 
 - All registered skills repositories and working repositories.
-- For each working repository, the artifacts installed in it and their status: up-to-date, update available, or drifted.
-- **New artifacts** that have appeared in registered skills repositories.
-- **Updated artifacts** in registered skills repositories — scoped to artifacts that are installed in at least one working repository (updates to artifacts that nobody has installed are not surfaced as notifications).
-- Notifications for new and updated source-repo artifacts can be **dismissed**.
+- For each working repository, the artifacts installed in it and their status: up-to-date, update available, or drifted. Working repos with non-up-to-date installs show a notification dot.
+- **New artifacts** that have appeared in registered skills repositories, shown as dismissible cards. On first registration of a source repo, all current artifacts are considered "known"; only artifacts that appear after registration are surfaced as new.
+- Notifications for new source-repo artifacts can be **dismissed**.
 
 ### 4.9 Local MCP server (for AI agents)
 
-The backend exposes a local Model Context Protocol server so AI agents can interact with Skills Manager directly. MVP tools cover **search and install**:
+The backend exposes a local Model Context Protocol server so AI agents can interact with Skills Manager directly. The MCP server is available at `/mcp` while the Skills Manager application is running, and exposes the following tools:
 
-- Search artifacts across registered skills repositories.
-- Retrieve an artifact's content and metadata.
-- List registered skills repositories and working repositories.
-- Install an artifact into a working repository.
-
-The MCP server is only available while the Skills Manager application is running.
+- `list_skills_repositories` — list all registered source repositories.
+- `list_working_repositories` — list all registered working repositories.
+- `search_artifacts` — search artifacts across all sources, with optional filters by query string, type, and source repo.
+- `get_artifact` — retrieve artifact metadata, file list, and version history.
+- `read_artifact_file` — read the content of a specific file within an artifact at a given SHA.
+- `list_installs` — list current installs with status, filterable by working repo, agent, and type.
+- `install_artifact` — install an artifact into a working repository or globally. Agent defaults to the favorite-agent setting.
 
 ### 4.10 Application settings
 
@@ -122,9 +120,9 @@ The product stores a small set of user-level settings that influence default beh
 
 ### 5.1 Backend supports
 
-- Storing and managing all state: registered skills repos, registered working repos, install records (including the source commit SHA for each install), dismissed notifications, per-install auto-update flags, application settings (e.g., favorite agent), presets.
+- Storing and managing all state: registered skills repos, registered working repos, install records (including the source commit SHA for each install), dismissed notifications, per-install auto-update flags, application settings (e.g., favorite agent), presets, artifact snapshots.
 - Performing all git operations against skills repositories (clone, fetch, commit walking, file lookup at a SHA) and computing per-artifact "last touched commit" SHAs.
-- Performing install, uninstall, update, and drift-check operations against working repositories.
+- Performing install, uninstall, update, re-apply, and drift-check operations against working repositories.
 - Implementing the file-level "ignore in working repo" mechanism without touching tracked files in those repos.
 - Exposing an API for the frontend.
 - Exposing the local MCP server.
@@ -136,7 +134,7 @@ The product stores a small set of user-level settings that influence default beh
 - Managing registered working repositories: add, edit, remove.
 - Installing, uninstalling, and updating artifacts to working repositories or to the user-global location; toggling auto-update per install; choosing the target agent (pre-filled from the favorite-agent setting).
 - Viewing artifact version history and side-by-side diffs (version-to-version, installed-vs-latest, installed-vs-drifted).
-- Dashboard with status indicators and dismissible notifications.
+- Dashboard with status indicators and dismissible new-artifact notifications.
 - Viewing and editing application settings (favorite agent, etc.).
 - Viewing MCP server status and the configuration snippet to paste into an agent's MCP configuration.
 
@@ -154,12 +152,3 @@ The product stores a small set of user-level settings that influence default beh
 - Multi-user, remote synchronization, team-level sharing.
 - Background updates or notifications while the application is not running.
 - Notifications surfaced outside the application UI.
-
-## 8. Delivery phases
-
-The build is sliced as a walking skeleton, with each slice independently shippable:
-
-- **Phase 1 — Walking skeleton.** Register skills + working repositories; browse and manually install artifacts into a working repository for a single agent end-to-end.
-- **Phase 2 — Updates and drift.** Per-artifact version tracking, update detection, drift detection.
-- **Phase 3 — Local MCP server.** Expose search + install over MCP for AI-agent consumption.
-- **Phase 4 — Dashboard and diff polish.** Full dashboard with dismissible notifications, side-by-side diff viewer across version-vs-version, installed-vs-latest, and installed-vs-drifted views.
