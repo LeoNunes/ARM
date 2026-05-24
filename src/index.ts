@@ -10,6 +10,7 @@ import { DismissedNotificationsStore } from './state/notifications';
 import { ActivityLogStore } from './state/activity-log';
 import { pickFreePort } from './ports';
 import { runAutoUpdatePass } from './engine/update-pass';
+import { startRefreshLoop } from './engine/refresh-loop';
 
 async function main() {
   ensureStateDirs();
@@ -32,6 +33,7 @@ async function main() {
   runAutoUpdatePass({ installs, skillsRepos, workingRepos, registries }).catch((err) => {
     process.stderr.write(`update-pass error: ${(err as Error).message}\n`);
   });
+  startRefreshLoop({ settings, skillsRepos, workingRepos, installs, activityLog, registries });
 }
 
 main().catch((err) => {
