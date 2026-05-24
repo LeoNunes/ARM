@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, InstallWithStatus, WorkingRepo } from "../api.ts";
 import { StatusPill } from "../components/StatusPill.tsx";
+import { useAutoRefresh } from "../hooks/useAutoRefresh.ts";
 
 type FilterChip = "all" | "update-available" | "drifted";
 
@@ -17,6 +18,8 @@ export function WorkingRepoDetail() {
     api.listInstallsByWorkingRepo(id).then(setInstalls);
   };
   useEffect(reload, [id]);
+
+  useAutoRefresh(reload);
 
   const handleRefresh = async () => {
     setRefreshing(true);

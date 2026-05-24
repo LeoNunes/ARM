@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { api, Artifact } from "../api.ts";
 import { InstallModal } from "../components/InstallModal.tsx";
+import { useAutoRefresh } from "../hooks/useAutoRefresh.ts";
 
 export function Browse() {
   const [q, setQ] = useState("");
@@ -15,6 +16,13 @@ export function Browse() {
       .catch(() => {});
     return () => ac.abort();
   }, [q]);
+
+  useAutoRefresh(() => {
+    const ac = new AbortController();
+    api.listArtifacts({ q: q || undefined }, ac.signal)
+      .then(setArtifacts)
+      .catch(() => {});
+  });
 
   return (
     <>
