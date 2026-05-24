@@ -106,17 +106,24 @@ export async function registerDiffRoutes(app: FastifyInstance, deps: ServerDeps)
         (await lastSHATouching(sr.localClonePath, sr.branch, install.installedFiles.map((f) => f.sourcePath))) ??
         install.installedCommitSha;
 
-      const files: FileDiff[] = await Promise.all(
-        install.installedFiles.map(async (f) => {
-          const fc = await safeReadAtSha(sr.localClonePath, install.installedCommitSha, f.sourcePath);
-          const tc = await safeReadAtSha(sr.localClonePath, latestSha, f.sourcePath);
-          return { path: f.sourcePath, fromContent: fc, toContent: tc, changed: fc !== tc };
-        }),
-      );
-
       const sources = await deps.skillsRepos.list();
       const allArtifacts = (await Promise.all(sources.map((s) => discoverArtifacts(s, deps.registries.types)))).flat();
       const artifact = allArtifacts.find((a) => a.artifactKey === install.artifactKey);
+
+      // Union of installed paths and paths in the latest commit (catches newly added files)
+      const installedPaths = install.installedFiles.map((f) => f.sourcePath);
+      const latestPaths = artifact
+        ? await listFilesAtSha(sr.localClonePath, latestSha, artifact.rootRelativePath)
+        : [];
+      const allPaths = [...new Set([...installedPaths, ...latestPaths])];
+
+      const files: FileDiff[] = await Promise.all(
+        allPaths.map(async (p) => {
+          const fc = await safeReadAtSha(sr.localClonePath, install.installedCommitSha, p);
+          const tc = await safeReadAtSha(sr.localClonePath, latestSha, p);
+          return { path: p, fromContent: fc, toContent: tc, changed: fc !== tc };
+        }),
+      );
 
       return {
         artifactKey: install.artifactKey,

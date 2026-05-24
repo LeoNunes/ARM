@@ -33,10 +33,14 @@ async function computeStatusForInstalls(
     installs.map(async (install) => {
       const sr = reposById.get(install.sourceRepoId);
       if (!sr) return { ...install, status: "up-to-date" as const, availableSha: null };
-      const updateResult = await checkForUpdates(install, sr);
-      const driftResult = await checkForDrift(install, sr, workingRepoPath);
-      const status = computeInstallStatus(updateResult.hasUpdate, driftResult.isDrifted);
-      return { ...install, status, availableSha: updateResult.availableSha };
+      try {
+        const updateResult = await checkForUpdates(install, sr);
+        const driftResult = await checkForDrift(install, sr, workingRepoPath);
+        const status = computeInstallStatus(updateResult.hasUpdate, driftResult.isDrifted);
+        return { ...install, status, availableSha: updateResult.availableSha };
+      } catch {
+        return { ...install, status: "up-to-date" as const, availableSha: null };
+      }
     }),
   );
 }

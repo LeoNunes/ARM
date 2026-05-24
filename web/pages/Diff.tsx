@@ -46,7 +46,7 @@ export function Diff() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [mode, installId, artifactKey, fromSha, toSha]);
 
   const handlePrimaryAction = async () => {
     if (!diffData?.installId) return;

@@ -6,6 +6,8 @@ import { SettingsStore } from "../../src/state/settings.ts";
 import { SkillsRepoStore } from "../../src/state/skills-repos.ts";
 import { WorkingRepoStore } from "../../src/state/working-repos.ts";
 import { InstallsStore } from "../../src/state/installs.ts";
+import { ArtifactSnapshotsStore } from "../../src/state/artifact-snapshots.ts";
+import { DismissedNotificationsStore } from "../../src/state/notifications.ts";
 import { tmpDir } from "../helpers/tmp-dir.ts";
 import { buildFixtureRepo } from "../helpers/build-fixture-repo.ts";
 import { GitClient } from "../../src/git/client.ts";
@@ -28,6 +30,8 @@ async function makeDeps(): Promise<ServerDeps> {
     workingRepos: new WorkingRepoStore(stateDir),
     installs: new InstallsStore(stateDir),
     registries: buildRegistries(),
+    snapshots: new ArtifactSnapshotsStore(stateDir),
+    dismissed: new DismissedNotificationsStore(stateDir),
   };
 }
 
