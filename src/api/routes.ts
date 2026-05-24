@@ -7,6 +7,7 @@ import { registerArtifactsRoutes } from './artifacts';
 import { registerInstallsRoutes } from './installs';
 import { registerNotificationsRoutes } from './notifications';
 import { registerDiffRoutes } from './diff';
+import { registerActivityLogRoutes } from './activity-log';
 import { AppError } from '../util/errors';
 
 export async function registerRoutes(app: FastifyInstance, deps: ServerDeps): Promise<void> {
@@ -32,4 +33,5 @@ export async function registerRoutes(app: FastifyInstance, deps: ServerDeps): Pr
   await registerInstallsRoutes(app, deps);
   await registerNotificationsRoutes(app, deps);
   await registerDiffRoutes(app, deps);
+  await registerActivityLogRoutes(app, deps);
 }
