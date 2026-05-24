@@ -21,8 +21,8 @@ import { buildServer } from "../../src/server.ts";
 import type { AddressInfo } from "node:net";
 
 async function makeDeps(): Promise<ServerDeps> {
-  const stateDir = await tmpDir("skillmgr-mcp-");
-  const cacheDir = await tmpDir("skillmgr-cache-");
+  const stateDir = await tmpDir("arm-mcp-");
+  const cacheDir = await tmpDir("arm-cache-");
   return {
     stateDir,
     cacheDir,
@@ -54,7 +54,7 @@ function parseResult(result: unknown) {
 }
 
 async function makeWorkingRepo(): Promise<WorkingRepo> {
-  const dir = await tmpDir("skillmgr-wr-");
+  const dir = await tmpDir("arm-wr-");
   const sg = simpleGit(dir);
   await sg.init();
   await sg.addConfig("user.email", "a@b");
@@ -573,7 +573,7 @@ describe("MCP HTTP transport", () => {
       });
       expect(res.status).toBe(200);
       const body = await res.json() as { result?: { serverInfo?: { name?: string } } };
-      expect(body.result?.serverInfo?.name).toBe("skills-manager");
+      expect(body.result?.serverInfo?.name).toBe("ai-resources-manager");
     } finally {
       await app.close();
     }

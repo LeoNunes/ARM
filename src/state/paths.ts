@@ -2,7 +2,7 @@ import envPaths from "env-paths";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 
-const PATHS = envPaths("skillmanager", { suffix: "" });
+const PATHS = envPaths("arm", { suffix: "" });
 
 export function resolveStateDir(): string {
   return PATHS.data;

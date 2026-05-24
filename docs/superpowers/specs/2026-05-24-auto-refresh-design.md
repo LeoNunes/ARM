@@ -5,7 +5,7 @@
 
 ## Overview
 
-Add two related capabilities to Skills Manager:
+Add two related capabilities to AI Resources Manager:
 
 1. **Auto-refresh** — the backend periodically fetches all registered skills repositories and runs the auto-update pass on a configurable interval; the frontend re-polls the API on a fixed short interval to keep displayed state current.
 2. **Activity log** — a persistent, categorized record of all write operations (installs, uninstalls, re-applies, refreshes, auto-updates), surfaced on the Dashboard and on a dedicated Activity page.

@@ -11,8 +11,8 @@ import { buildRegistries } from "../../src/adapters/index.ts";
 import { tmpDir } from "../helpers/tmp-dir.ts";
 
 async function makeDeps() {
-  const stateDir = await tmpDir("skillmgr-actlog-");
-  const cacheDir = await tmpDir("skillmgr-cache-");
+  const stateDir = await tmpDir("arm-actlog-");
+  const cacheDir = await tmpDir("arm-cache-");
   return {
     stateDir,
     cacheDir,

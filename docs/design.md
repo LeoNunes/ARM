@@ -1,4 +1,4 @@
-# Skills Manager — Design
+# AI Resources Manager — Design
 
 > Engineering design for the product described in [`product-specification.md`](./product-specification.md). This document captures architectural decisions, the data model, the adapter layers, the MCP surface, UI structure, error handling, and the testing strategy. It does not restate product capabilities — read the product spec first.
 
@@ -17,7 +17,7 @@ A single Node.js + TypeScript backend process exposes:
 - An **MCP server** over **Streamable HTTP**, served on the same port at `/mcp`.
 - The built React assets (the SPA is bundled in and served by the same process).
 
-Startup is launched by a small `skillmgr` CLI that:
+Startup is launched by a small `arm` CLI that:
 
 1. Reads the saved port (or picks a free one), boots the BE.
 2. Opens the user's default browser to the UI URL.
@@ -28,9 +28,9 @@ When the user closes the launcher (or hits Quit in the UI), the BE shuts down. T
 
 All state lives in an OS-appropriate user-data directory (resolved via the `env-paths` npm package):
 
-- Windows: `%APPDATA%\skillmanager\`
-- macOS: `~/Library/Application Support/skillmanager/`
-- Linux: `$XDG_CONFIG_HOME/skillmanager/` (defaulting to `~/.config/skillmanager/`)
+- Windows: `%APPDATA%\arm\`
+- macOS: `~/Library/Application Support/arm/`
+- Linux: `$XDG_CONFIG_HOME/arm/` (defaulting to `~/.config/arm/`)
 
 Inside:
 
@@ -43,7 +43,7 @@ Inside:
   dismissed-notifications.json
   presets.json          # bundled with the app, read-only
   cache/<sourceRepoId>/ # full clones of registered skills repositories
-  logs/skillmgr.log     # rotating log file
+  logs/arm.log     # rotating log file
 ```
 
 All persistence is JSON files. No database in MVP. Volumes are small (handfuls of repos, dozens-to-low-hundreds of installs).
@@ -52,7 +52,7 @@ All persistence is JSON files. No database in MVP. Volumes are small (handfuls o
 
 - **FE ↔ BE:** plain HTTP/JSON on `http://127.0.0.1:<port>/api/...`.
 - **Agents ↔ BE:** MCP over Streamable HTTP at `http://127.0.0.1:<port>/mcp`.
-- An optional `skillmgr-mcp` stdio shim is reserved for future agents that don't support HTTP MCP transport (out of scope for slice 1).
+- An optional `arm-mcp` stdio shim is reserved for future agents that don't support HTTP MCP transport (out of scope for slice 1).
 
 ### Cross-platform
 
@@ -205,10 +205,10 @@ When the scheduled update pass finds an install with `autoUpdate=true` and an up
 Per working repo, the BE manages a fenced block in `<workingRepo>/.git/info/exclude`:
 
 ```
-# BEGIN skills-manager (auto-managed, do not edit)
+# BEGIN ai-resources-manager (auto-managed, do not edit)
 .claude/skills/superpowers/
 .cursor/rules/foo.mdc
-# END skills-manager
+# END ai-resources-manager
 ```
 
 `.git/info/exclude` is a git-native local-only ignore file — not tracked, not synced, supported on every git version. The block is rewritten in full on each install/uninstall by aggregating the `targetPath`s of all current installs into that working repo. No other tracked files in the working repo are touched.
@@ -368,7 +368,7 @@ Footer: Close + the relevant primary action (Update / Re-apply / Discard).
 
 ### Logging
 
-Rotating log at `<state-dir>/logs/skillmgr.log`. Settings → About has a "Reveal log file" button.
+Rotating log at `<state-dir>/logs/arm.log`. Settings → About has a "Reveal log file" button.
 
 ### No silent failures
 

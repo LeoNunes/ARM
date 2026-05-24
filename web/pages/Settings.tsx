@@ -25,7 +25,7 @@ export function Settings() {
     (agent: "claude-code" | "cursor") => {
       if (!s) return;
       const snippet = JSON.stringify(
-        { mcpServers: { "skills-manager": { url: mcpUrl } } },
+        { mcpServers: { "ai-resources-manager": { url: mcpUrl } } },
         null,
         2,
       );

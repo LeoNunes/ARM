@@ -1,10 +1,10 @@
 {
-  "name": "skills-manager",
+  "name": "ai-resources-manager",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "bin": {
-    "skillmgr": "bin/skillmgr.js"
+    "arm": "bin/arm.js"
   },
   "scripts": {
     "dev:be": "tsx watch src/index.ts",
@@ -12,7 +12,7 @@
     "build:fe": "vite build",
     "build:be": "tsc -p tsconfig.be.json && node scripts/fix-imports.js",
     "build": "npm run build:fe && npm run build:be",
-    "start": "node bin/skillmgr.js",
+    "start": "node bin/arm.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },

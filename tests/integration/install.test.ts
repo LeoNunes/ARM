@@ -13,7 +13,7 @@ import path from "node:path";
 import type { SkillsRepo, WorkingRepo } from "../../src/state/schema.ts";
 
 async function makeWorkingRepo(): Promise<WorkingRepo> {
-  const dir = await tmpDir("skillmgr-wr-");
+  const dir = await tmpDir("arm-wr-");
   const sg = simpleGit(dir);
   await sg.init();
   await sg.addConfig("user.email", "a@b");

@@ -13,8 +13,8 @@ import { buildFixtureRepo } from "../helpers/build-fixture-repo.ts";
 import { simpleGit } from "simple-git";
 
 async function makeDeps() {
-  const stateDir = await tmpDir("skillmgr-api-");
-  const cacheDir = await tmpDir("skillmgr-cache-");
+  const stateDir = await tmpDir("arm-api-");
+  const cacheDir = await tmpDir("arm-cache-");
   return {
     stateDir,
     cacheDir,
@@ -85,7 +85,7 @@ describe("API /working-repos", () => {
   it("registers a working repo, refusing non-git paths", async () => {
     const deps = await makeDeps();
     const app = await buildServer(deps);
-    const wrPath = await tmpDir("skillmgr-wr-");
+    const wrPath = await tmpDir("arm-wr-");
     await simpleGit(wrPath).init();
 
     const ok = await app.inject({
@@ -94,7 +94,7 @@ describe("API /working-repos", () => {
     });
     expect(ok.statusCode).toBe(201);
 
-    const nonGit = await tmpDir("skillmgr-not-git-");
+    const nonGit = await tmpDir("arm-not-git-");
     const bad = await app.inject({
       method: "POST", url: "/api/working-repos",
       payload: { name: "x", path: nonGit },
@@ -139,7 +139,7 @@ describe("API /installs", () => {
       method: "POST", url: "/api/skills-repos",
       payload: { name: "src", gitUrl: fx.fileUrl, branch: "main", artifactPaths: { skills: ["ai/skills"] } },
     })).json();
-    const wrPath = await tmpDir("skillmgr-wr-");
+    const wrPath = await tmpDir("arm-wr-");
     await simpleGit(wrPath).init();
     const wr = (await app.inject({
       method: "POST", url: "/api/working-repos",
@@ -184,7 +184,7 @@ describe("API /installs — status, PATCH auto-update, POST update", () => {
       method: "POST", url: "/api/skills-repos",
       payload: { name: "src", gitUrl: fx.fileUrl, branch: "main", artifactPaths: { skills: ["ai/skills"] } },
     })).json();
-    const wrPath = await tmpDir("skillmgr-wr-");
+    const wrPath = await tmpDir("arm-wr-");
     await simpleGit(wrPath).init();
     await simpleGit(wrPath).addConfig("user.email", "a@b");
     await simpleGit(wrPath).addConfig("user.name", "t");
@@ -263,7 +263,7 @@ describe("API /installs — status, PATCH auto-update, POST update", () => {
       method: "POST", url: "/api/skills-repos",
       payload: { name: "s", gitUrl: fx2.fileUrl, branch: "main", artifactPaths: { skills: ["ai/skills"] } },
     });
-    const wrPath2 = await tmpDir("skillmgr-wr-");
+    const wrPath2 = await tmpDir("arm-wr-");
     await simpleGit(wrPath2).init();
     await simpleGit(wrPath2).addConfig("user.email", "a@b");
     await simpleGit(wrPath2).addConfig("user.name", "t");
@@ -294,7 +294,7 @@ describe("API POST /working-repos/:id/refresh", () => {
       method: "POST", url: "/api/skills-repos",
       payload: { name: "src", gitUrl: fx.fileUrl, branch: "main", artifactPaths: { skills: ["ai/skills"] } },
     });
-    const wrPath = await tmpDir("skillmgr-wr-");
+    const wrPath = await tmpDir("arm-wr-");
     await simpleGit(wrPath).init();
     await simpleGit(wrPath).addConfig("user.email", "a@b");
     await simpleGit(wrPath).addConfig("user.name", "t");

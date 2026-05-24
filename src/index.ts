@@ -29,7 +29,7 @@ async function main() {
   const port = await pickFreePort(desired);
   if (port !== desired) await settings.update({ mcpPort: port });
   await app.listen({ port, host: "127.0.0.1" });
-  process.stdout.write(`Skills Manager listening at http://127.0.0.1:${port}\n`);
+  process.stdout.write(`AI Resources Manager listening at http://127.0.0.1:${port}\n`);
   runAutoUpdatePass({ installs, skillsRepos, workingRepos, registries }).catch((err) => {
     process.stderr.write(`update-pass error: ${(err as Error).message}\n`);
   });

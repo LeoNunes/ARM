@@ -4,7 +4,7 @@ import path from "node:path";
 
 const created: string[] = [];
 
-export async function tmpDir(prefix = "skillmgr-test-"): Promise<string> {
+export async function tmpDir(prefix = "arm-test-"): Promise<string> {
   const dir = await mkdtemp(path.join(tmpdir(), prefix));
   created.push(dir);
   return dir;

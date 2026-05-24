@@ -158,7 +158,7 @@ import path from "node:path";
 import type { SkillsRepo, WorkingRepo, Install } from "../../src/state/schema.ts";
 
 async function makeWorkingRepo(): Promise<WorkingRepo> {
-  const dir = await tmpDir("skillmgr-wr-");
+  const dir = await tmpDir("arm-wr-");
   await simpleGit(dir).init();
   await simpleGit(dir).addConfig("user.email", "a@b").addConfig("user.name", "t");
   await simpleGit(dir).commit("seed", [], { "--allow-empty": null });
@@ -523,7 +523,7 @@ import { InstallsStore } from "../../src/state/installs.ts";
 
 describe("InstallsStore.update()", () => {
   it("updates fields on an existing install record", async () => {
-    const dir = await tmpDir("skillmgr-state-");
+    const dir = await tmpDir("arm-state-");
     const store = new InstallsStore(dir);
     const record = await store.add({
       artifactKey: "src1:ai/skills/foo",
@@ -546,7 +546,7 @@ describe("InstallsStore.update()", () => {
   });
 
   it("defaults artifactType to 'skills' for records missing the field (backward compat)", async () => {
-    const dir = await tmpDir("skillmgr-state-");
+    const dir = await tmpDir("arm-state-");
     // Write a raw record without artifactType to simulate old installs.json
     const { writeFile } = await import("node:fs/promises");
     const { join } = await import("node:path");
@@ -901,7 +901,7 @@ describe("runAutoUpdatePass", () => {
     ]);
     const dest = path.join(await tmpDir(), "clone");
     await new GitClient().clone(fx.fileUrl, dest, "main");
-    const stateDir = await tmpDir("skillmgr-pass-");
+    const stateDir = await tmpDir("arm-pass-");
     const wr = await makeWorkingRepo();
     const { agents, types } = buildRegistries();
     const srData: SkillsRepo = {
@@ -947,7 +947,7 @@ describe("runAutoUpdatePass", () => {
     ]);
     const dest = path.join(await tmpDir(), "clone");
     await new GitClient().clone(fx.fileUrl, dest, "main");
-    const stateDir = await tmpDir("skillmgr-pass-");
+    const stateDir = await tmpDir("arm-pass-");
     const wr = await makeWorkingRepo();
     const { agents, types } = buildRegistries();
     const srData: SkillsRepo = {
@@ -997,7 +997,7 @@ describe("runAutoUpdatePass", () => {
     ]);
     const dest = path.join(await tmpDir(), "clone");
     await new GitClient().clone(fx.fileUrl, dest, "main");
-    const stateDir = await tmpDir("skillmgr-pass-");
+    const stateDir = await tmpDir("arm-pass-");
     const wr = await makeWorkingRepo();
     const { agents, types } = buildRegistries();
     const srData: SkillsRepo = {
@@ -1144,7 +1144,7 @@ describe("API /installs — status, PATCH auto-update, POST update", () => {
       method: "POST", url: "/api/skills-repos",
       payload: { name: "src", gitUrl: fx.fileUrl, branch: "main", artifactPaths: { skills: ["ai/skills"] } },
     })).json();
-    const wrPath = await tmpDir("skillmgr-wr-");
+    const wrPath = await tmpDir("arm-wr-");
     await simpleGit(wrPath).init();
     await simpleGit(wrPath).addConfig("user.email", "a@b").addConfig("user.name", "t");
     await simpleGit(wrPath).commit("seed", [], { "--allow-empty": null });
@@ -1221,7 +1221,7 @@ describe("API /installs — status, PATCH auto-update, POST update", () => {
       method: "POST", url: "/api/skills-repos",
       payload: { name: "s", gitUrl: fx2.fileUrl, branch: "main", artifactPaths: { skills: ["ai/skills"] } },
     });
-    const wrPath2 = await tmpDir("skillmgr-wr-");
+    const wrPath2 = await tmpDir("arm-wr-");
     await simpleGit(wrPath2).init();
     await simpleGit(wrPath2).addConfig("user.email", "a@b").addConfig("user.name", "t");
     await simpleGit(wrPath2).commit("seed", [], { "--allow-empty": null });
@@ -1449,7 +1449,7 @@ describe("API POST /working-repos/:id/refresh", () => {
       method: "POST", url: "/api/skills-repos",
       payload: { name: "src", gitUrl: fx.fileUrl, branch: "main", artifactPaths: { skills: ["ai/skills"] } },
     });
-    const wrPath = await tmpDir("skillmgr-wr-");
+    const wrPath = await tmpDir("arm-wr-");
     await simpleGit(wrPath).init();
     await simpleGit(wrPath).addConfig("user.email", "a@b").addConfig("user.name", "t");
     await simpleGit(wrPath).commit("seed", [], { "--allow-empty": null });

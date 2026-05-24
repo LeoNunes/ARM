@@ -4,8 +4,8 @@ import { tmpDir } from "../helpers/tmp-dir.ts";
 import { writeFile, readFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
-const BEGIN = "# BEGIN skills-manager (auto-managed, do not edit)";
-const END = "# END skills-manager";
+const BEGIN = "# BEGIN ai-resources-manager (auto-managed, do not edit)";
+const END = "# END ai-resources-manager";
 
 async function makeExclude(initial = "") {
   const dir = await tmpDir();

@@ -1,4 +1,4 @@
-# Skills Manager
+# AI Resources Manager
 
 Locally-run application that manages AI-agent artifacts (skills, rules, …) across multiple source repositories and multiple working repositories, without polluting the working repos' git history.
 
@@ -14,7 +14,7 @@ See `docs/product-specification.md` for capabilities and `docs/design.md` for ar
 ```bash
 npm install
 npm run build
-node bin/skillmgr.js
+node bin/arm.js
 ```
 
 The first launch opens your browser to `http://127.0.0.1:7747` (or the next free port).
@@ -39,9 +39,9 @@ npm test
 
 State lives in the OS user-data directory:
 
-- macOS: `~/Library/Application Support/skillmanager/`
-- Linux: `~/.config/skillmanager/`
-- Windows: `%APPDATA%\skillmanager\`
+- macOS: `~/Library/Application Support/arm/`
+- Linux: `~/.config/arm/`
+- Windows: `%APPDATA%\arm\`
 
 ## Architecture
 

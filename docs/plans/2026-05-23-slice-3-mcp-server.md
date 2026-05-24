@@ -108,8 +108,8 @@ import type { ServerDeps } from "../../src/server.ts";
 import { createMcpServer } from "../../src/mcp/tools.ts";
 
 async function makeDeps(): Promise<ServerDeps> {
-  const stateDir = await tmpDir("skillmgr-mcp-");
-  const cacheDir = await tmpDir("skillmgr-cache-");
+  const stateDir = await tmpDir("arm-mcp-");
+  const cacheDir = await tmpDir("arm-cache-");
   return {
     stateDir,
     cacheDir,
@@ -137,7 +137,7 @@ function parseResult(result: { content: Array<{ type: string; text?: string }> }
 }
 
 async function makeWorkingRepo(): Promise<{ id: string; name: string; path: string; addedAt: string }> {
-  const dir = await tmpDir("skillmgr-wr-");
+  const dir = await tmpDir("arm-wr-");
   const sg = simpleGit(dir);
   await sg.init();
   await sg.addConfig("user.email", "a@b");
@@ -252,7 +252,7 @@ async function discoverAll(deps: ServerDeps) {
 }
 
 export function createMcpServer(deps: ServerDeps): McpServer {
-  const server = new McpServer({ name: "skills-manager", version: "0.1.0" });
+  const server = new McpServer({ name: "ai-resources-manager", version: "0.1.0" });
 
   server.tool(
     "list_skills_repositories",
@@ -1154,7 +1154,7 @@ describe("MCP HTTP transport", () => {
       });
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body.result?.serverInfo?.name).toBe("skills-manager");
+      expect(body.result?.serverInfo?.name).toBe("ai-resources-manager");
     } finally {
       await app.close();
     }
@@ -1379,7 +1379,7 @@ export function Settings() {
     (agent: "claude-code" | "cursor") => {
       if (!s) return;
       const snippet = JSON.stringify(
-        { mcpServers: { "skills-manager": { url: mcpUrl } } },
+        { mcpServers: { "ai-resources-manager": { url: mcpUrl } } },
         null,
         2,
       );

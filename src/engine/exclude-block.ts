@@ -2,8 +2,8 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-const BEGIN = "# BEGIN skills-manager (auto-managed, do not edit)";
-const END = "# END skills-manager";
+const BEGIN = "# BEGIN ai-resources-manager (auto-managed, do not edit)";
+const END = "# END ai-resources-manager";
 
 export async function writeExcludeBlock(filePath: string, patterns: string[]): Promise<void> {
   const existing = existsSync(filePath) ? await readFile(filePath, "utf8") : "";

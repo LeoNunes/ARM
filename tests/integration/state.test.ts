@@ -5,11 +5,11 @@ import { tmpDir } from "../helpers/tmp-dir.ts";
 import path from "node:path";
 
 describe("resolveStateDir", () => {
-  it("returns an absolute path under the OS user-data dir for 'skillmanager'", () => {
+  it("returns an absolute path under the OS user-data dir for 'arm'", () => {
     const dir = resolveStateDir();
     expect(dir).toBeTypeOf("string");
     expect(dir.length).toBeGreaterThan(0);
-    expect(dir).toMatch(/skillmanager/i);
+    expect(dir).toMatch(/arm/i);
   });
 });
 
@@ -115,7 +115,7 @@ describe("InstallsStore", () => {
 
 describe("InstallsStore.update()", () => {
   it("updates fields on an existing install record", async () => {
-    const dir = await tmpDir("skillmgr-state-");
+    const dir = await tmpDir("arm-state-");
     const store = new InstallsStore(dir);
     const record = await store.add({
       artifactKey: "src1:ai/skills/foo",
@@ -138,7 +138,7 @@ describe("InstallsStore.update()", () => {
   });
 
   it("defaults artifactType to 'skills' for records missing the field (backward compat)", async () => {
-    const dir = await tmpDir("skillmgr-state-");
+    const dir = await tmpDir("arm-state-");
     // Write a raw record without artifactType to simulate old installs.json
     const { writeFile } = await import("node:fs/promises");
     const { join } = await import("node:path");

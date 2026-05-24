@@ -1,8 +1,8 @@
-# Skills Manager — Slice 1 (Walking Skeleton) Implementation Plan
+# AI Resources Manager — Slice 1 (Walking Skeleton) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship a working end-to-end Skills Manager that can register a skills repository (via git URL + per-type paths), register a working repository, browse discovered skills, and install a skill into a working repository for either Claude Code or Cursor — with all installed files tracked locally and ignored by git via `.git/info/exclude`. No updates, no drift, no MCP, no diff viewer — those land in later slices.
+**Goal:** Ship a working end-to-end AI Resources Manager that can register a skills repository (via git URL + per-type paths), register a working repository, browse discovered skills, and install a skill into a working repository for either Claude Code or Cursor — with all installed files tracked locally and ignored by git via `.git/info/exclude`. No updates, no drift, no MCP, no diff viewer — those land in later slices.
 
 **Architecture:** A single Node.js + TypeScript backend (Fastify) serves a React + Vite SPA over HTTP on localhost and persists state as JSON files in an OS-appropriate user-data directory. Agent and artifact-type behavior live behind small, registry-based adapter interfaces so adding Cursor + Claude Code does not bake those names into the engine. All git operations shell out to the user's `git` binary via `simple-git`.
 
@@ -24,7 +24,7 @@ The full slice-1 codebase. Each file has one responsibility; tasks group by file
 ├── tsconfig.fe.json                     FE TS config (used by Vite)
 ├── vitest.config.ts                     test runner config
 ├── vite.config.ts                       FE bundler config (outputs dist/web)
-├── bin/skillmgr.js                      thin launcher: boots BE, opens browser
+├── bin/arm.js                      thin launcher: boots BE, opens browser
 ├── src/                                 BE source
 │   ├── index.ts                         BE entry: parses args, starts server, prints URL
 │   ├── server.ts                        Fastify server: registers routes, serves dist/web
@@ -129,18 +129,18 @@ The full slice-1 codebase. Each file has one responsibility; tasks group by file
 
 ```json
 {
-  "name": "skills-manager",
+  "name": "ai-resources-manager",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "bin": { "skillmgr": "bin/skillmgr.js" },
+  "bin": { "arm": "bin/arm.js" },
   "scripts": {
     "dev:be": "tsx watch src/index.ts",
     "dev:fe": "vite",
     "build:fe": "vite build",
     "build:be": "tsc -p tsconfig.be.json",
     "build": "npm run build:fe && npm run build:be",
-    "start": "node bin/skillmgr.js",
+    "start": "node bin/arm.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -319,7 +319,7 @@ export default defineConfig({
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Skills Manager</title>
+    <title>AI Resources Manager</title>
   </head>
   <body>
     <div id="root"></div>
@@ -332,7 +332,7 @@ export default defineConfig({
 
 ```tsx
 export function App() {
-  return <div>Skills Manager — slice 1</div>;
+  return <div>AI Resources Manager — slice 1</div>;
 }
 ```
 
@@ -375,11 +375,11 @@ import { describe, it, expect } from "vitest";
 import { resolveStateDir } from "../../src/state/paths.ts";
 
 describe("resolveStateDir", () => {
-  it("returns an absolute path under the OS user-data dir for 'skillmanager'", () => {
+  it("returns an absolute path under the OS user-data dir for 'arm'", () => {
     const dir = resolveStateDir();
     expect(dir).toBeTypeOf("string");
     expect(dir.length).toBeGreaterThan(0);
-    expect(dir).toMatch(/skillmanager/i);
+    expect(dir).toMatch(/arm/i);
   });
 });
 ```
@@ -397,7 +397,7 @@ import envPaths from "env-paths";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 
-const PATHS = envPaths("skillmanager", { suffix: "" });
+const PATHS = envPaths("arm", { suffix: "" });
 
 export function resolveStateDir(): string {
   return PATHS.data;
@@ -553,7 +553,7 @@ import path from "node:path";
 
 const created: string[] = [];
 
-export async function tmpDir(prefix = "skillmgr-test-"): Promise<string> {
+export async function tmpDir(prefix = "arm-test-"): Promise<string> {
   const dir = await mkdtemp(path.join(tmpdir(), prefix));
   created.push(dir);
   return dir;
@@ -1014,7 +1014,7 @@ export interface FixtureResult {
 }
 
 export async function buildFixtureRepo(commits: FixtureCommit[]): Promise<FixtureResult> {
-  const dir = await tmpDir("skillmgr-fixture-");
+  const dir = await tmpDir("arm-fixture-");
   const git = simpleGit(dir);
   await git.init();
   await git.addConfig("user.email", "fixture@example.com");
@@ -1858,8 +1858,8 @@ import { tmpDir } from "../helpers/tmp-dir.ts";
 import { writeFile, readFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
-const BEGIN = "# BEGIN skills-manager (auto-managed, do not edit)";
-const END = "# END skills-manager";
+const BEGIN = "# BEGIN ai-resources-manager (auto-managed, do not edit)";
+const END = "# END ai-resources-manager";
 
 async function makeExclude(initial = "") {
   const dir = await tmpDir();
@@ -1921,8 +1921,8 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-const BEGIN = "# BEGIN skills-manager (auto-managed, do not edit)";
-const END = "# END skills-manager";
+const BEGIN = "# BEGIN ai-resources-manager (auto-managed, do not edit)";
+const END = "# END ai-resources-manager";
 
 export async function writeExcludeBlock(filePath: string, patterns: string[]): Promise<void> {
   const existing = existsSync(filePath) ? await readFile(filePath, "utf8") : "";
@@ -2023,7 +2023,7 @@ import path from "node:path";
 import type { SkillsRepo, WorkingRepo } from "../../src/state/schema.ts";
 
 async function makeWorkingRepo(): Promise<WorkingRepo> {
-  const dir = await tmpDir("skillmgr-wr-");
+  const dir = await tmpDir("arm-wr-");
   await simpleGit(dir).init();
   await simpleGit(dir).addConfig("user.email", "a@b").addConfig("user.name", "t");
   await simpleGit(dir).commit("seed", [], { "--allow-empty": null });
@@ -2237,7 +2237,7 @@ import path from "node:path";
 import type { SkillsRepo, WorkingRepo } from "../../src/state/schema.ts";
 
 async function makeWorkingRepo(): Promise<WorkingRepo> {
-  const dir = await tmpDir("skillmgr-wr-");
+  const dir = await tmpDir("arm-wr-");
   const g = simpleGit(dir);
   await g.init();
   await g.addConfig("user.email", "a@b").addConfig("user.name", "t");
@@ -2462,8 +2462,8 @@ import { buildRegistries } from "../../src/adapters/index.ts";
 import { tmpDir } from "../helpers/tmp-dir.ts";
 
 async function makeDeps() {
-  const stateDir = await tmpDir("skillmgr-api-");
-  const cacheDir = await tmpDir("skillmgr-cache-");
+  const stateDir = await tmpDir("arm-api-");
+  const cacheDir = await tmpDir("arm-cache-");
   return {
     stateDir,
     cacheDir,
@@ -2793,7 +2793,7 @@ describe("API /working-repos", () => {
   it("registers a working repo, refusing non-git paths", async () => {
     const deps = await makeDeps();
     const app = await buildServer(deps);
-    const wrPath = await tmpDir("skillmgr-wr-");
+    const wrPath = await tmpDir("arm-wr-");
     await simpleGit(wrPath).init();
 
     const ok = await app.inject({
@@ -2802,7 +2802,7 @@ describe("API /working-repos", () => {
     });
     expect(ok.statusCode).toBe(201);
 
-    const nonGit = await tmpDir("skillmgr-not-git-");
+    const nonGit = await tmpDir("arm-not-git-");
     const bad = await app.inject({
       method: "POST", url: "/api/working-repos",
       payload: { name: "x", path: nonGit },
@@ -3032,7 +3032,7 @@ describe("API /installs", () => {
       method: "POST", url: "/api/skills-repos",
       payload: { name: "src", gitUrl: fx.fileUrl, branch: "main", artifactPaths: { skills: ["ai/skills"] } },
     })).json();
-    const wrPath = await tmpDir("skillmgr-wr-");
+    const wrPath = await tmpDir("arm-wr-");
     await simpleGit(wrPath).init();
     const wr = (await app.inject({
       method: "POST", url: "/api/working-repos",
@@ -3207,7 +3207,7 @@ async function main() {
   const port = await pickFreePort(desired);
   if (port !== desired) await settings.update({ mcpPort: port });
   await app.listen({ port, host: "127.0.0.1" });
-  process.stdout.write(`Skills Manager listening at http://127.0.0.1:${port}\n`);
+  process.stdout.write(`AI Resources Manager listening at http://127.0.0.1:${port}\n`);
 }
 
 main().catch((err) => {
@@ -3378,7 +3378,7 @@ import { NavLink } from "react-router-dom";
 export function Sidebar() {
   return (
     <nav className="sidebar">
-      <h1>Skills Manager</h1>
+      <h1>AI Resources Manager</h1>
       <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>Dashboard</NavLink>
       <NavLink to="/browse" className={({ isActive }) => (isActive ? "active" : "")}>Browse</NavLink>
       <NavLink to="/skills-repos" className={({ isActive }) => (isActive ? "active" : "")}>Skills repos</NavLink>
@@ -4183,10 +4183,10 @@ git commit -m "feat(fe): minimal dashboard + settings page (favorite agent)"
 
 ## Phase 10 — Launcher + smoke
 
-### Task 35: `skillmgr` CLI launcher
+### Task 35: `arm` CLI launcher
 
 **Files:**
-- Create: `bin/skillmgr.js`
+- Create: `bin/arm.js`
 
 A thin shim that runs the compiled BE (or falls back to `tsx` in dev), opens the default browser, and shuts down on exit.
 
@@ -4194,7 +4194,7 @@ A thin shim that runs the compiled BE (or falls back to `tsx` in dev), opens the
 
 ```javascript
 #!/usr/bin/env node
-// bin/skillmgr.js
+// bin/arm.js
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -4231,21 +4231,21 @@ child.on("exit", (code) => process.exit(code ?? 0));
 
 - [ ] **Step 2: Make it executable on POSIX**
 
-Run (POSIX only — skipped on Windows): `chmod +x bin/skillmgr.js`
+Run (POSIX only — skipped on Windows): `chmod +x bin/arm.js`
 
 - [ ] **Step 3: Smoke-launch the full app**
 
 In one terminal:
 
 Run: `npm run build` (builds FE to `dist/web` and BE to `dist/be`).
-Run: `node bin/skillmgr.js`
-Expected: a browser opens to `http://127.0.0.1:7747` and the Skills Manager UI loads. Stop with Ctrl-C.
+Run: `node bin/arm.js`
+Expected: a browser opens to `http://127.0.0.1:7747` and the AI Resources Manager UI loads. Stop with Ctrl-C.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add bin/skillmgr.js
-git commit -m "feat: skillmgr CLI launcher boots BE + opens browser"
+git add bin/arm.js
+git commit -m "feat: arm CLI launcher boots BE + opens browser"
 ```
 
 ---
@@ -4258,7 +4258,7 @@ git commit -m "feat: skillmgr CLI launcher boots BE + opens browser"
 - [ ] **Step 1: Write `README.md`**
 
 ```markdown
-# Skills Manager
+# AI Resources Manager
 
 Locally-run application that manages AI-agent artifacts (skills, rules, …) across multiple source repositories and multiple working repositories, without polluting the working repos' git history.
 
@@ -4274,7 +4274,7 @@ See `docs/product-specification.md` for capabilities and `docs/design.md` for ar
 \`\`\`bash
 npm install
 npm run build
-node bin/skillmgr.js
+node bin/arm.js
 \`\`\`
 
 The first launch opens your browser to `http://127.0.0.1:7747` (or the next free port).
@@ -4299,9 +4299,9 @@ npm test
 
 State lives in the OS user-data directory:
 
-- macOS: `~/Library/Application Support/skillmanager/`
-- Linux: `~/.config/skillmanager/`
-- Windows: `%APPDATA%\skillmanager\`
+- macOS: `~/Library/Application Support/arm/`
+- Linux: `~/.config/arm/`
+- Windows: `%APPDATA%\arm\`
 
 ## Slice 1 — manual smoke test
 
@@ -4310,7 +4310,7 @@ State lives in the OS user-data directory:
 3. The repo appears in the list; click it to see discovered skills.
 4. Working repos → Register: name `test-proj`, path to any existing local git repo (`mkdir t && cd t && git init` works for a fresh one).
 5. Browse → find a skill → Install. Pick the working repo, leave agent as Claude Code.
-6. Check the working repo: `.claude/skills/<name>/` exists, `.git/info/exclude` contains a `# BEGIN skills-manager` block listing the new path, `git status` is clean.
+6. Check the working repo: `.claude/skills/<name>/` exists, `.git/info/exclude` contains a `# BEGIN ai-resources-manager` block listing the new path, `git status` is clean.
 7. Open the working-repo detail page; the install appears.
 8. Uninstall — files vanish, exclude block is updated.
 ```

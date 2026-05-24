@@ -16,7 +16,7 @@ export interface FixtureResult {
 }
 
 export async function buildFixtureRepo(commits: FixtureCommit[]): Promise<FixtureResult> {
-  const dir = await tmpDir("skillmgr-fixture-");
+  const dir = await tmpDir("arm-fixture-");
   const git = simpleGit(dir);
   await git.init();
   await git.addConfig("user.email", "fixture@example.com");

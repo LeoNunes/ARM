@@ -28,7 +28,7 @@ async function discoverAll(deps: ServerDeps): Promise<DiscoveredArtifact[]> {
 }
 
 export function createMcpServer(deps: ServerDeps): McpServer {
-  const server = new McpServer({ name: "skills-manager", version: "0.1.0" });
+  const server = new McpServer({ name: "ai-resources-manager", version: "0.1.0" });
 
   server.tool(
     "list_skills_repositories",

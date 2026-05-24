@@ -1,4 +1,4 @@
-# Skills Manager — Product Specification
+# AI Resources Manager — Product Specification
 
 > A locally-run application for managing AI-agent artifacts (skills, rules, and similar) across multiple source repositories and multiple working repositories, without polluting those working repositories' git history.
 
@@ -6,7 +6,7 @@
 
 Developers accumulate AI-agent artifacts — skills, rules, and similar pieces — across multiple source repositories, and want to install selected pieces into the repositories they actively work in.
 
-Skills Manager solves four problems at once:
+AI Resources Manager solves four problems at once:
 
 1. **Selective installation.** Choose which artifacts from which source repos go into which working repos, rather than installing everything en masse.
 2. **Version tracking.** Know which version of each artifact is installed where, and when newer versions become available upstream.
@@ -58,7 +58,7 @@ A single developer running on their own machine. Out of scope for MVP: multi-use
 - Installation copies the artifact's files into the target's agent-specific location (for example, the Claude Code skills directory inside the working repo, or the Cursor rules directory).
 - **Filename mapping** is applied where needed. MVP includes the case where files named `CLAUDE.md` become `AGENTS.md` when the target is Cursor.
 - For MVP, file content is copied **as-is** otherwise (no frontmatter or structural translation between agent formats).
-- After installation, the system arranges for the installed files to be ignored by git in the working repo **without modifying any tracked file in that repo** (no edits to the repo's `.gitignore`). Developers using the working repo see no Skills Manager output in `git status`.
+- After installation, the system arranges for the installed files to be ignored by git in the working repo **without modifying any tracked file in that repo** (no edits to the repo's `.gitignore`). Developers using the working repo see no AI Resources Manager output in `git status`.
 - Uninstall removes the installed files and the install record.
 
 ### 4.5 Update detection
@@ -101,7 +101,7 @@ A single overview page surfaces:
 
 ### 4.9 Local MCP server (for AI agents)
 
-The backend exposes a local Model Context Protocol server so AI agents can interact with Skills Manager directly. The MCP server is available at `/mcp` while the Skills Manager application is running, and exposes the following tools:
+The backend exposes a local Model Context Protocol server so AI agents can interact with AI Resources Manager directly. The MCP server is available at `/mcp` while the AI Resources Manager application is running, and exposes the following tools:
 
 - `list_skills_repositories` — list all registered source repositories.
 - `list_working_repositories` — list all registered working repositories.
