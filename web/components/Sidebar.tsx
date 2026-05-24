@@ -9,6 +9,7 @@ export function Sidebar() {
       <NavLink to="/skills-repos" className={({ isActive }) => (isActive ? "active" : "")}>Skills repos</NavLink>
       <NavLink to="/working-repos" className={({ isActive }) => (isActive ? "active" : "")}>Working repos</NavLink>
       <NavLink to="/settings" className={({ isActive }) => (isActive ? "active" : "")}>Settings</NavLink>
+      <NavLink to="/activity" className={({ isActive }) => (isActive ? "active" : "")}>Activity</NavLink>
     </nav>
   );
 }
