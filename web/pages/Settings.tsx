@@ -78,6 +78,42 @@ export function Settings() {
             <option value="cursor">Cursor</option>
           </select>
         </div>
+        <div className="field">
+          <label>Auto-refresh</label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={s.autoRefreshEnabled}
+              onChange={async (e) => {
+                try {
+                  setS(await api.updateSettings({ autoRefreshEnabled: e.target.checked }));
+                } catch (err) {
+                  setError((err as Error).message);
+                }
+              }}
+            />
+            Automatically fetch skills repos in the background
+          </label>
+        </div>
+        <div className="field">
+          <label>Refresh interval (minutes)</label>
+          <input
+            type="number"
+            min={1}
+            disabled={!s.autoRefreshEnabled}
+            value={s.autoRefreshIntervalMinutes}
+            onChange={async (e) => {
+              const val = parseInt(e.target.value, 10);
+              if (isNaN(val) || val < 1) return;
+              try {
+                setS(await api.updateSettings({ autoRefreshIntervalMinutes: val }));
+              } catch (err) {
+                setError((err as Error).message);
+              }
+            }}
+            style={{ width: 80 }}
+          />
+        </div>
       </div>
 
       <h3>MCP Server</h3>
