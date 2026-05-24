@@ -101,7 +101,7 @@ export async function registerInstallsRoutes(app: FastifyInstance, deps: ServerD
     });
     const persisted = await deps.installs.add(record);
     const targetName = workingRepo ? `'${workingRepo.name}'` : `globally (${agentId})`;
-    deps.activityLog?.add({
+    deps.activityLog.add({
       ts: new Date().toISOString(),
       category: "install",
       summary: `Installed '${artifact.name}' into ${targetName}`,
@@ -145,7 +145,7 @@ export async function registerInstallsRoutes(app: FastifyInstance, deps: ServerD
       otherInstallsInTarget: others,
     });
     const updated = await deps.installs.update(install.id, patch);
-    deps.activityLog?.add({
+    deps.activityLog.add({
       ts: new Date().toISOString(),
       category: "install",
       summary: `Updated '${artifactDisplayName(install.artifactKey)}' in '${wr.name}'`,
@@ -175,7 +175,7 @@ export async function registerInstallsRoutes(app: FastifyInstance, deps: ServerD
       otherInstallsInTarget: others,
     });
     const updated = await deps.installs.update(install.id, patch);
-    deps.activityLog?.add({
+    deps.activityLog.add({
       ts: new Date().toISOString(),
       category: "re-apply",
       summary: `Re-applied '${artifactDisplayName(install.artifactKey)}' in '${wr.name}'`,
@@ -203,7 +203,7 @@ export async function registerInstallsRoutes(app: FastifyInstance, deps: ServerD
       await deps.installs.remove(install.id);
     }
     const wrName = workingRepo ? `'${workingRepo.name}'` : "global";
-    deps.activityLog?.add({
+    deps.activityLog.add({
       ts: new Date().toISOString(),
       category: "uninstall",
       summary: `Uninstalled '${artifactDisplayName(install.artifactKey)}' from ${wrName}`,
