@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.ts";
-import type { NewArtifactNotification, WorkingRepo, SkillsRepo, InstallWithStatus, Artifact } from "../api.ts";
+import type { NewArtifactNotification, WorkingRepo, SkillsRepo, InstallWithStatus, Artifact, ActivityLogEntry, ActivityCategory } from "../api.ts";
 import { InstallModal } from "../components/InstallModal.tsx";
+import { useAutoRefresh } from "../hooks/useAutoRefresh.ts";
 
 export function Dashboard() {
   const [newArtifacts, setNewArtifacts] = useState<NewArtifactNotification[]>([]);
@@ -11,6 +12,8 @@ export function Dashboard() {
   const [installsByWr, setInstallsByWr] = useState<Record<string, InstallWithStatus[]>>({});
   const [installArtifact, setInstallArtifact] = useState<Artifact | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activityEntries, setActivityEntries] = useState<ActivityLogEntry[]>([]);
+  const [activityCategory, setActivityCategory] = useState<ActivityCategory | "all">("all");
 
   const load = async () => {
     try {
@@ -29,12 +32,18 @@ export function Dashboard() {
         }),
       );
       setInstallsByWr(map);
+      const log = await api.getActivityLog({
+        limit: 10,
+        category: activityCategory === "all" ? undefined : activityCategory,
+      });
+      setActivityEntries(log);
     } catch (e) {
       setError((e as Error).message);
     }
   };
 
   useEffect(() => { load(); }, []);
+  useAutoRefresh(load);
 
   const handleDismiss = async (key: string) => {
     try {
@@ -77,6 +86,39 @@ export function Dashboard() {
         files: [],
         lastTouchedSha: n.sha,
       });
+    }
+  };
+
+  const ACTIVITY_LABELS: Record<ActivityCategory, string> = {
+    "auto-update": "Auto-update",
+    "install":     "Install",
+    "uninstall":   "Uninstall",
+    "re-apply":    "Re-apply",
+    "refresh":     "Refresh",
+  };
+
+  const ACTIVITY_STYLES: Record<ActivityCategory, React.CSSProperties> = {
+    "auto-update": { background: "#cce5ff", color: "#004085" },
+    "install":     { background: "#d4edda", color: "#155724" },
+    "uninstall":   { background: "#f8d7da", color: "#721c24" },
+    "re-apply":    { background: "#fff3cd", color: "#856404" },
+    "refresh":     { background: "rgba(255,255,255,0.08)", color: "var(--muted)" },
+  };
+
+  function formatRelative(ts: string): string {
+    const diff = Date.now() - new Date(ts).getTime();
+    if (diff < 60_000) return "just now";
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+    return new Date(ts).toLocaleDateString();
+  }
+
+  const handleDeleteActivity = async (id: string) => {
+    try {
+      await api.deleteActivityLogEntry(id);
+      setActivityEntries((prev) => prev.filter((e) => e.id !== id));
+    } catch {
+      // silently ignore
     }
   };
 
@@ -215,6 +257,71 @@ export function Dashboard() {
                 {s.lastFetchedAt && `fetched ${new Date(s.lastFetchedAt).toLocaleTimeString()}`}
               </span>
             </Link>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ marginTop: 28 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ fontSize: 11, color: "var(--muted)", letterSpacing: "0.05em" }}>RECENT ACTIVITY</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <select
+              value={activityCategory}
+              onChange={(e) => {
+                const cat = e.target.value as ActivityCategory | "all";
+                setActivityCategory(cat);
+                api.getActivityLog({ limit: 10, category: cat === "all" ? undefined : cat })
+                  .then(setActivityEntries)
+                  .catch(() => {});
+              }}
+              style={{ fontSize: 11 }}
+            >
+              <option value="all">All</option>
+              {(Object.keys(ACTIVITY_LABELS) as ActivityCategory[]).map((c) => (
+                <option key={c} value={c}>{ACTIVITY_LABELS[c]}</option>
+              ))}
+            </select>
+            <Link to="/activity" style={{ fontSize: 11, color: "var(--muted)" }}>View all →</Link>
+          </div>
+        </div>
+        {activityEntries.length === 0 && (
+          <p style={{ color: "var(--muted)", fontSize: 12, marginTop: 8 }}>No activity yet.</p>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {activityEntries.map((e) => (
+            <div
+              key={e.id}
+              style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "7px 12px",
+                background: "rgba(255,255,255,0.03)", borderRadius: 4, fontSize: 12,
+              }}
+            >
+              <span style={{ color: "var(--muted)", minWidth: 72, flexShrink: 0 }}>
+                {formatRelative(e.ts)}
+              </span>
+              <span style={{
+                ...ACTIVITY_STYLES[e.category],
+                padding: "1px 7px", borderRadius: 10, fontWeight: 600, whiteSpace: "nowrap", fontSize: 11,
+              }}>
+                {ACTIVITY_LABELS[e.category]}
+              </span>
+              <span style={{ flex: 1 }}>{e.summary}</span>
+              {e.detail && (
+                <span style={{ color: "var(--muted)", fontFamily: "monospace", fontSize: 11 }}>
+                  {e.detail}
+                </span>
+              )}
+              <button
+                title="Delete entry"
+                onClick={() => handleDeleteActivity(e.id)}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--muted)", padding: "2px 6px", fontSize: 13, lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
+            </div>
           ))}
         </div>
       </section>
