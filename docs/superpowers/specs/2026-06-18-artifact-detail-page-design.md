@@ -51,7 +51,7 @@ Type differentiation: for MVP the structure is identical for all artifact types;
 
 ### 4.2 File Viewer
 
-- **Version dropdown** (at top of section) — lists the artifact's version history. Each option shows: `{short SHA} · {date} · {commit subject}`. Default: the artifact's `lastTouchedSha` (latest). Changing the selection re-fetches all file contents at that SHA.
+- **Version dropdown** (at top of section) — lists the artifact's version history. Each option shows: `{short SHA} · {date} · {commit subject}`. Default: the artifact's `lastTouchedSha` (latest). Changing the selection re-fetches all file contents at that SHA. The dropdown holds a raw SHA as its value; if a SHA is set (e.g., from clicking an installed version in the Installs section) that is not present in the 20-commit history list, it is shown as a standalone selected option labeled with its short SHA.
 - **File picker** (left sidebar, narrow) — lists all files belonging to the artifact. Clicking a file selects it. Selected file highlighted. Same visual pattern as the Diff page's file list.
 - **Content area** (right) — raw text in a `<pre>` / monospace block. No syntax highlighting for MVP (supports mixed file types including shell scripts). A small label above shows the selected file's full path.
 
@@ -90,7 +90,7 @@ GET /api/installs?artifactKey=<key>
 
 Returns `InstallWithStatus[]` — all installs for the given artifact key, across all working repos and global installs, with status computed for each (update availability + drift check).
 
-Implementation follows the same pattern as `GET /api/working-repos/:id/installs`, but filters by `artifactKey` instead of `workingRepoId`. For drift checking, each install's working repo path is resolved from `WorkingReposStore`.
+Implementation follows the same pattern as `GET /api/working-repos/:id/installs`, but filters by `artifactKey` instead of `workingRepoId`. For working-repo installs, the working repo path is resolved from `WorkingReposStore` for drift checking. For global installs, drift checking is not applicable — their status is computed from update availability only (status is either `up-to-date` or `update-available`).
 
 ### No other backend changes required
 
