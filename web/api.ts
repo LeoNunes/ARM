@@ -188,7 +188,7 @@ export const api = {
     req<Artifact>("GET", `/api/artifacts/${encodeURIComponent(artifactKey)}`),
 
   getArtifactFile: (artifactKey: string, filePath: string, sha: string): Promise<string> =>
-    fetch(`/api/artifacts/${encodeURIComponent(artifactKey)}/files/${filePath}?sha=${encodeURIComponent(sha)}`)
+    fetch(`/api/artifacts/${encodeURIComponent(artifactKey)}/files/${filePath.split("/").map(encodeURIComponent).join("/")}?sha=${encodeURIComponent(sha)}`)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.text();
