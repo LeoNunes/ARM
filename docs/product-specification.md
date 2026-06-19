@@ -98,6 +98,8 @@ A single overview page surfaces:
 - For each working repository, the artifacts installed in it and their status: up-to-date, update available, or drifted. Working repos with non-up-to-date installs show a notification dot.
 - **New artifacts** that have appeared in registered skills repositories, shown as dismissible cards. On first registration of a source repo, all current artifacts are considered "known"; only artifacts that appear after registration are surfaced as new.
 - New-artifact notification cards have two buttons: **View** (navigates to the artifact detail page) and **Dismiss** (removes the card).
+- **Updated artifacts** — any artifact in a registered source repo whose upstream SHA has advanced since the user last acknowledged it, shown as dismissible cards alongside new-artifact cards. Covers all artifacts (installed or not). Dismissal is per-SHA: if the artifact receives another new commit later, a fresh notification appears. Updated-artifact cards have two buttons: **View diff** (navigates to the version-vs-version diff between the last-acknowledged SHA and the new SHA) and **Dismiss** (removes the card and advances the acknowledged SHA baseline).
+- The notification card section header is dynamic: **NEW SKILLS** when only new-artifact cards are present, **UPDATED SKILLS** when only updated-artifact cards are present, and **NEW & UPDATED SKILLS** when both are present.
 - **Recent activity panel** showing the 10 most recent activity log entries (see §4.12), with a category filter and a link to the full Activity page.
 - The Dashboard, Browse page, and working-repo detail page all re-poll the API every 5 seconds to keep displayed state current while the app is open.
 
@@ -153,7 +155,7 @@ The activity log is surfaced in two places:
 
 ### 5.1 Backend supports
 
-- Storing and managing all state: registered skills repos, registered working repos, install records (including the source commit SHA for each install), dismissed notifications, per-install auto-update flags, application settings (e.g., favorite agent, auto-refresh interval), presets, artifact snapshots, activity log.
+- Storing and managing all state: registered skills repos, registered working repos, install records (including the source commit SHA for each install), dismissed notifications, per-install auto-update flags, application settings (e.g., favorite agent, auto-refresh interval), presets, artifact snapshots, per-artifact last-acknowledged SHA baselines, activity log.
 - Performing all git operations against skills repositories (clone, fetch, commit walking, file lookup at a SHA) and computing per-artifact "last touched commit" SHAs.
 - Performing install, uninstall, update, re-apply, and drift-check operations against working repositories.
 - Implementing the file-level "ignore in working repo" mechanism without touching tracked files in those repos.
@@ -170,7 +172,7 @@ The activity log is surfaced in two places:
 - Installing, uninstalling, and updating artifacts to working repositories or to the user-global location; toggling auto-update per install; choosing the target agent (pre-filled from the favorite-agent setting).
 - Viewing artifact version history and side-by-side diffs (version-to-version, installed-vs-latest, installed-vs-drifted).
 - Viewing artifact detail pages: file viewer (version selector + raw content), version history with two-step compare, and install locations with status and actions.
-- Dashboard with status indicators, dismissible new-artifact notifications, and a recent activity panel.
+- Dashboard with status indicators, dismissible new-artifact and updated-artifact notification cards, and a recent activity panel.
 - Activity page showing the full activity log with category filter and per-entry delete.
 - Viewing and editing application settings (favorite agent, auto-refresh interval, etc.).
 - Viewing MCP server status and the configuration snippet to paste into an agent's MCP configuration.
