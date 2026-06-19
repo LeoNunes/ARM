@@ -47,11 +47,12 @@ A single developer running on their own machine. Out of scope for MVP: multi-use
 - Browse all artifacts (skills + rules) across all registered skills repositories.
 - Search and filter artifacts by name, source repository, and type.
 - Inspect an artifact's content before installing.
+- Each artifact row links to the artifact's **detail page** (see §4.9).
 
 ### 4.4 Installing
 
 - Install an artifact into a registered working repository. The user selects:
-  - The **target agent** for the install (pre-filled from the global **favorite agent** setting — see §4.10 — and overridable per install).
+  - The **target agent** for the install (pre-filled from the global **favorite agent** setting — see §4.11 — and overridable per install).
   - The **version** to install (default: latest).
   - Whether to enable **auto-update** for this install.
 - Install an artifact at the **user-global location** for an agent (rather than into a specific working repo). The agent selector here is also pre-filled from the favorite-agent setting.
@@ -60,10 +61,11 @@ A single developer running on their own machine. Out of scope for MVP: multi-use
 - For MVP, file content is copied **as-is** otherwise (no frontmatter or structural translation between agent formats).
 - After installation, the system arranges for the installed files to be ignored by git in the working repo **without modifying any tracked file in that repo** (no edits to the repo's `.gitignore`). Developers using the working repo see no AI Resources Manager output in `git status`.
 - Uninstall removes the installed files and the install record.
+- Install can also be initiated from the **artifact detail page**.
 
 ### 4.5 Update detection
 
-- The backend fetches new commits from registered skills repositories (on demand, on app launch, and on a configurable background interval — see §4.10).
+- The backend fetches new commits from registered skills repositories (on demand, on app launch, and on a configurable background interval — see §4.11).
 - For each install, the system determines whether new commits exist in the source repo that touch the installed artifact's files.
 - If yes, the install is marked **update available**, surfaced in the UI.
 - **Auto-update behavior:**
@@ -75,6 +77,7 @@ A single developer running on their own machine. Out of scope for MVP: multi-use
 
 ### 4.6 Version history and diffs
 
+- The artifact detail page (§4.9) is the primary surface for browsing version history and comparing versions.
 - For any artifact, view the chronological list of commits in its source repository that touched its files (its **version history**).
 - View a side-by-side / unified diff between any two of those versions.
 - View a side-by-side diff between the installed version and the latest available version.
@@ -95,11 +98,20 @@ A single overview page surfaces:
 - All registered skills repositories and working repositories.
 - For each working repository, the artifacts installed in it and their status: up-to-date, update available, or drifted. Working repos with non-up-to-date installs show a notification dot.
 - **New artifacts** that have appeared in registered skills repositories, shown as dismissible cards. On first registration of a source repo, all current artifacts are considered "known"; only artifacts that appear after registration are surfaced as new.
-- Notifications for new source-repo artifacts can be **dismissed**.
-- **Recent activity panel** showing the 10 most recent activity log entries (see §4.11), with a category filter and a link to the full Activity page.
+- New-artifact notification cards have two buttons: **View** (navigates to the artifact detail page) and **Dismiss** (removes the card).
+- **Recent activity panel** showing the 10 most recent activity log entries (see §4.12), with a category filter and a link to the full Activity page.
 - The page re-polls the API every 5 seconds to keep displayed state current while the app is open.
 
-### 4.9 Local MCP server (for AI agents)
+### 4.9 Artifact detail page
+
+A dedicated page for each artifact, accessible by clicking the artifact name from Browse, SkillsRepoDetail, WorkingRepoDetail, and Dashboard notification cards. The page has four sections:
+
+- **Header** — artifact name, type badge, description, source repo name, and an Install button.
+- **File viewer** — a version dropdown (default: latest) and a file picker (left) with raw content display (right). Changing the version re-fetches all file content at that SHA. If the selected SHA is not in the 20-commit history window, it appears as a standalone option.
+- **Version history** — table of the 20 most recent commits touching the artifact's files, with SHA, date, and commit subject. Clicking a SHA sets the file viewer to that version. A two-step Compare flow lets the user select two versions and navigate to the diff page.
+- **Installs** — table of all locations this artifact is installed (across all working repos and global), showing target name, agent, installed version (short SHA — clickable to set the file viewer), status, auto-update, and actions (Update, View diff, View drift, Re-apply, Disable auto-update, Uninstall) matching the same logic as the working-repo detail page. For global installs, drift checking is not applicable.
+
+### 4.10 Local MCP server (for AI agents)
 
 The backend exposes a local Model Context Protocol server so AI agents can interact with AI Resources Manager directly. The MCP server is available at `/mcp` while the AI Resources Manager application is running, and exposes the following tools:
 
@@ -111,7 +123,7 @@ The backend exposes a local Model Context Protocol server so AI agents can inter
 - `list_installs` — list current installs with status, filterable by working repo, agent, and type.
 - `install_artifact` — install an artifact into a working repository or globally. Agent defaults to the favorite-agent setting.
 
-### 4.10 Application settings
+### 4.11 Application settings
 
 The product stores a small set of user-level settings that influence default behavior across the application.
 
@@ -120,7 +132,7 @@ The product stores a small set of user-level settings that influence default beh
 - **Refresh interval.** How often the background refresh loop runs, in minutes (default: 30, minimum: 1). Changes take effect at the next tick without restarting the app.
 - Settings can be viewed and changed from a dedicated settings area in the UI.
 
-### 4.11 Activity log
+### 4.12 Activity log
 
 A persistent record of all write operations performed by the application, kept on disk across sessions and capped at 500 entries (oldest pruned first).
 
