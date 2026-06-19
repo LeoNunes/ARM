@@ -170,6 +170,7 @@ The activity log is surfaced in two places:
 - Managing registered working repositories: add, edit, remove.
 - Installing, uninstalling, and updating artifacts to working repositories or to the user-global location; toggling auto-update per install; choosing the target agent (pre-filled from the favorite-agent setting).
 - Viewing artifact version history and side-by-side diffs (version-to-version, installed-vs-latest, installed-vs-drifted).
+- Viewing artifact detail pages: file viewer (version selector + raw content), version history with two-step compare, and install locations with status and actions.
 - Dashboard with status indicators, dismissible new-artifact notifications, and a recent activity panel.
 - Activity page showing the full activity log with category filter and per-entry delete.
 - Viewing and editing application settings (favorite agent, auto-refresh interval, etc.).
