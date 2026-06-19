@@ -46,8 +46,7 @@ A single developer running on their own machine. Out of scope for MVP: multi-use
 
 - Browse all artifacts (skills + rules) across all registered skills repositories.
 - Search and filter artifacts by name, source repository, and type.
-- Inspect an artifact's content before installing.
-- Each artifact row links to the artifact's **detail page** (see §4.9).
+- Each artifact row links to the artifact's **detail page** (see §4.9), where the user can inspect file content at any version, browse the version history and compare versions, manage all installs of that artifact, and initiate a new install.
 
 ### 4.4 Installing
 
@@ -100,7 +99,7 @@ A single overview page surfaces:
 - **New artifacts** that have appeared in registered skills repositories, shown as dismissible cards. On first registration of a source repo, all current artifacts are considered "known"; only artifacts that appear after registration are surfaced as new.
 - New-artifact notification cards have two buttons: **View** (navigates to the artifact detail page) and **Dismiss** (removes the card).
 - **Recent activity panel** showing the 10 most recent activity log entries (see §4.12), with a category filter and a link to the full Activity page.
-- The page re-polls the API every 5 seconds to keep displayed state current while the app is open.
+- The Dashboard, Browse page, and working-repo detail page all re-poll the API every 5 seconds to keep displayed state current while the app is open.
 
 ### 4.9 Artifact detail page
 
