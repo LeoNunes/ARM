@@ -183,4 +183,17 @@ export const api = {
 
   getArtifactHistory: (artifactKey: string, limit = 20) =>
     req<CommitSummary[]>("GET", `/api/artifacts/${encodeURIComponent(artifactKey)}/history?limit=${limit}`),
+
+  getArtifact: (artifactKey: string) =>
+    req<Artifact>("GET", `/api/artifacts/${encodeURIComponent(artifactKey)}`),
+
+  getArtifactFile: (artifactKey: string, filePath: string, sha: string): Promise<string> =>
+    fetch(`/api/artifacts/${encodeURIComponent(artifactKey)}/files/${filePath}?sha=${encodeURIComponent(sha)}`)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.text();
+      }),
+
+  listInstallsByArtifact: (artifactKey: string) =>
+    req<InstallWithStatus[]>("GET", `/api/installs?artifactKey=${encodeURIComponent(artifactKey)}`),
 };
