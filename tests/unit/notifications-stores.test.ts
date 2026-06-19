@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { DismissedNotificationsStore } from "../../src/state/notifications.ts";
 import { ArtifactSnapshotsStore } from "../../src/state/artifact-snapshots.ts";
+import { ArtifactShaBaselineStore } from "../../src/state/artifact-sha-baseline.ts";
 
 describe("DismissedNotificationsStore", () => {
   let dir: string;
@@ -99,5 +100,48 @@ describe("ArtifactSnapshotsStore", () => {
     expect(result.wasInitialized).toBe(false);
     expect(result.snapshot.has("r1:foo")).toBe(true);
     expect(result.snapshot.has("r1:bar")).toBe(false);
+  });
+});
+
+describe("ArtifactShaBaselineStore", () => {
+  let dir: string;
+  let store: ArtifactShaBaselineStore;
+
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(tmpdir(), "sha-baseline-test-"));
+    store = new ArtifactShaBaselineStore(dir);
+  });
+
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("getBaseline returns null for unknown artifact", async () => {
+    expect(await store.getBaseline("r1", "r1:skills/foo")).toBeNull();
+  });
+
+  it("setBaseline persists a SHA", async () => {
+    await store.setBaseline("r1", "r1:skills/foo", "abc123");
+    expect(await store.getBaseline("r1", "r1:skills/foo")).toBe("abc123");
+  });
+
+  it("setBaseline overwrites existing SHA", async () => {
+    await store.setBaseline("r1", "r1:skills/foo", "abc123");
+    await store.setBaseline("r1", "r1:skills/foo", "def456");
+    expect(await store.getBaseline("r1", "r1:skills/foo")).toBe("def456");
+  });
+
+  it("setBulkBaseline writes multiple entries at once", async () => {
+    await store.setBulkBaseline("r1", [
+      { artifactKey: "r1:skills/foo", sha: "sha-foo" },
+      { artifactKey: "r1:skills/bar", sha: "sha-bar" },
+    ]);
+    expect(await store.getBaseline("r1", "r1:skills/foo")).toBe("sha-foo");
+    expect(await store.getBaseline("r1", "r1:skills/bar")).toBe("sha-bar");
+  });
+
+  it("different sourceRepoIds are stored independently", async () => {
+    await store.setBaseline("r1", "r1:skills/foo", "sha-1");
+    await store.setBaseline("r2", "r2:skills/foo", "sha-2");
+    expect(await store.getBaseline("r1", "r1:skills/foo")).toBe("sha-1");
+    expect(await store.getBaseline("r2", "r2:skills/foo")).toBe("sha-2");
   });
 });
