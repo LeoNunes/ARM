@@ -334,6 +334,77 @@ describe("API POST /working-repos/:id/refresh", () => {
   });
 });
 
+describe("API GET /api/installs?artifactKey=", () => {
+  it("returns 400 when artifactKey is missing", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    const res = await app.inject({ method: "GET", url: "/api/installs" });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("returns installs with status for the given artifactKey", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+
+    const fx = await buildFixtureRepo([
+      { message: "init", files: { "skills/foo/SKILL.md": "# Foo\n" } },
+    ]);
+    const srcRes = await app.inject({
+      method: "POST", url: "/api/skills-repos",
+      payload: { name: "src", gitUrl: fx.fileUrl, branch: "main", artifactPaths: { skills: ["skills"] } },
+    });
+    expect(srcRes.statusCode).toBe(201);
+    const src = srcRes.json();
+
+    const wrDir = await tmpDir("arm-wr-");
+    const sg = simpleGit(wrDir);
+    await sg.init();
+    await sg.addConfig("user.email", "a@b");
+    await sg.addConfig("user.name", "t");
+    await sg.addConfig("commit.gpgsign", "false");
+    await sg.commit("seed", [], { "--allow-empty": null });
+
+    const wrRes = await app.inject({
+      method: "POST", url: "/api/working-repos",
+      payload: { name: "my-repo", path: wrDir },
+    });
+    expect(wrRes.statusCode).toBe(201);
+    const wr = wrRes.json();
+
+    const artifactsRes = await app.inject({ method: "GET", url: `/api/artifacts?sourceRepoId=${src.id}` });
+    const artifacts = artifactsRes.json();
+    expect(artifacts.length).toBeGreaterThan(0);
+    const artifactKey: string = artifacts[0].artifactKey;
+
+    await app.inject({
+      method: "POST", url: "/api/installs",
+      payload: { artifactKey, target: { type: "working-repo", workingRepoId: wr.id } },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/installs?artifactKey=${encodeURIComponent(artifactKey)}`,
+    });
+    expect(res.statusCode).toBe(200);
+    const list = res.json();
+    expect(list).toHaveLength(1);
+    expect(list[0].artifactKey).toBe(artifactKey);
+    expect(list[0].status).toBe("up-to-date");
+    expect(list[0].availableSha).toBeNull();
+  });
+
+  it("returns empty array when no installs exist for the artifactKey", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/installs?artifactKey=nonexistent%3Afoo",
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([]);
+  });
+});
+
 describe("Activity log instrumentation", () => {
   it("POST /api/installs writes an install activity entry", async () => {
     const deps = await makeDeps();

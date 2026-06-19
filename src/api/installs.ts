@@ -186,6 +186,41 @@ export async function registerInstallsRoutes(app: FastifyInstance, deps: ServerD
     return updated;
   });
 
+  app.get<{ Querystring: { artifactKey?: string } }>("/api/installs", async (req, reply) => {
+    const rawKey = req.query.artifactKey;
+    if (!rawKey) throw new AppError("bad_input", "artifactKey query param required");
+    const decodedKey = decodeURIComponent(rawKey);
+
+    const allInstalls = await deps.installs.list();
+    const filtered = allInstalls.filter((i) => i.artifactKey === decodedKey);
+
+    const allWorkingRepos = await deps.workingRepos.list();
+    const wrById = new Map(allWorkingRepos.map((w) => [w.id, w]));
+    const allSkillsRepos = await deps.skillsRepos.list();
+    const srById = new Map(allSkillsRepos.map((s) => [s.id, s]));
+
+    return Promise.all(
+      filtered.map(async (install) => {
+        const sr = srById.get(install.sourceRepoId);
+        if (!sr) return { ...install, status: "up-to-date" as const, availableSha: null };
+        try {
+          const updateResult = await checkForUpdates(install, sr);
+          if (install.target.type === "global") {
+            const status = updateResult.hasUpdate ? "update-available" as const : "up-to-date" as const;
+            return { ...install, status, availableSha: updateResult.availableSha };
+          }
+          const wr = wrById.get(install.target.workingRepoId);
+          if (!wr) return { ...install, status: "up-to-date" as const, availableSha: null };
+          const driftResult = await checkForDrift(install, sr, wr.path);
+          const status = computeInstallStatus(updateResult.hasUpdate, driftResult.isDrifted);
+          return { ...install, status, availableSha: updateResult.availableSha };
+        } catch {
+          return { ...install, status: "up-to-date" as const, availableSha: null };
+        }
+      }),
+    );
+  });
+
   app.delete<{ Params: { id: string } }>("/api/installs/:id", async (req, reply) => {
     const install = await deps.installs.get(req.params.id);
     if (!install) return reply.code(404).send({ code: "install_not_found" });
