@@ -7,6 +7,7 @@ import { InstallsStore } from './state/installs';
 import { buildRegistries } from './adapters/index';
 import { ArtifactSnapshotsStore } from './state/artifact-snapshots';
 import { DismissedNotificationsStore } from './state/notifications';
+import { ArtifactShaBaselineStore } from './state/artifact-sha-baseline';
 import { ActivityLogStore } from './state/activity-log';
 import { pickFreePort } from './ports';
 import { runAutoUpdatePass } from './engine/update-pass';
@@ -23,8 +24,12 @@ async function main() {
   const registries = buildRegistries();
   const snapshots = new ArtifactSnapshotsStore(stateDir);
   const dismissed = new DismissedNotificationsStore(stateDir);
+  const shaBaseline = new ArtifactShaBaselineStore(stateDir);
   const activityLog = new ActivityLogStore(stateDir);
-  const app = await buildServer({ stateDir, cacheDir, settings, skillsRepos, workingRepos, installs, registries, snapshots, dismissed, activityLog });
+  const app = await buildServer({
+    stateDir, cacheDir, settings, skillsRepos, workingRepos, installs,
+    registries, snapshots, dismissed, shaBaseline, activityLog,
+  });
   const desired = (await settings.read()).mcpPort;
   const port = await pickFreePort(desired);
   if (port !== desired) await settings.update({ mcpPort: port });

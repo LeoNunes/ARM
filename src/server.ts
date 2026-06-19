@@ -13,6 +13,7 @@ import type { buildRegistries } from './adapters/index';
 import type { ArtifactSnapshotsStore } from './state/artifact-snapshots';
 import type { DismissedNotificationsStore } from './state/notifications';
 import type { ActivityLogStore } from './state/activity-log';
+import type { ArtifactShaBaselineStore } from './state/artifact-sha-baseline';
 
 export interface ServerDeps {
   stateDir: string;
@@ -22,9 +23,10 @@ export interface ServerDeps {
   workingRepos: WorkingRepoStore;
   installs: InstallsStore;
   registries: ReturnType<typeof buildRegistries>;
-  snapshots: ArtifactSnapshotsStore;        // NEW
-  dismissed: DismissedNotificationsStore;   // NEW
+  snapshots: ArtifactSnapshotsStore;
+  dismissed: DismissedNotificationsStore;
   activityLog: ActivityLogStore;
+  shaBaseline: ArtifactShaBaselineStore;
 }
 
 export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
