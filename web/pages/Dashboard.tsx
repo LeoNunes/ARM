@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.ts";
-import type { NewArtifactNotification, WorkingRepo, SkillsRepo, InstallWithStatus, ActivityLogEntry, ActivityCategory } from "../api.ts";
+import type { NewArtifactNotification, UpdatedArtifactNotification, WorkingRepo, SkillsRepo, InstallWithStatus, ActivityLogEntry, ActivityCategory } from "../api.ts";
 import { useAutoRefresh } from "../hooks/useAutoRefresh.ts";
 
 export function Dashboard() {
   const [newArtifacts, setNewArtifacts] = useState<NewArtifactNotification[]>([]);
+  const [updatedArtifacts, setUpdatedArtifacts] = useState<UpdatedArtifactNotification[]>([]);
   const [working, setWorking] = useState<WorkingRepo[]>([]);
   const [sources, setSources] = useState<SkillsRepo[]>([]);
   const [installsByWr, setInstallsByWr] = useState<Record<string, InstallWithStatus[]>>({});
@@ -21,6 +22,7 @@ export function Dashboard() {
         api.listSkillsRepos(),
       ]);
       setNewArtifacts(notifs.newArtifacts);
+      setUpdatedArtifacts(notifs.updatedArtifacts);
       setWorking(wr);
       setSources(srcs);
       const map: Record<string, InstallWithStatus[]> = {};
@@ -47,6 +49,7 @@ export function Dashboard() {
     try {
       await api.dismissNotification(key);
       setNewArtifacts((prev) => prev.filter((n) => n.key !== key));
+      setUpdatedArtifacts((prev) => prev.filter((n) => n.key !== key));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -88,16 +91,22 @@ export function Dashboard() {
   const hasNonUpToDate = (wrId: string) =>
     (installsByWr[wrId] ?? []).some((i) => i.status !== "up-to-date");
 
+  const totalCards = newArtifacts.length + updatedArtifacts.length;
+  const sectionLabel =
+    newArtifacts.length > 0 && updatedArtifacts.length > 0 ? "NEW & UPDATED SKILLS"
+    : newArtifacts.length > 0 ? "NEW SKILLS"
+    : "UPDATED SKILLS";
+
   return (
     <>
       {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
       <h2 style={{ marginTop: 0 }}>Dashboard</h2>
 
-      {newArtifacts.length > 0 && (
+      {totalCards > 0 && (
         <section style={{ marginBottom: 28 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-            <span style={{ fontSize: 11, color: "var(--muted)", letterSpacing: "0.05em" }}>NEW SKILLS</span>
-            <span style={{ fontSize: 11, color: "var(--muted)" }}>{newArtifacts.length} new · install or dismiss</span>
+            <span style={{ fontSize: 11, color: "var(--muted)", letterSpacing: "0.05em" }}>{sectionLabel}</span>
+            <span style={{ fontSize: 11, color: "var(--muted)" }}>{totalCards} · review or dismiss</span>
           </div>
           <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
             {newArtifacts.map((n) => (
@@ -120,6 +129,44 @@ export function Dashboard() {
                     style={{ fontSize: 10, padding: "3px 8px", textDecoration: "none" }}
                   >
                     View
+                  </Link>
+                  <button
+                    className="btn secondary"
+                    style={{ fontSize: 10, padding: "3px 4px" }}
+                    onClick={() => handleDismiss(n.key)}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            ))}
+            {updatedArtifacts.map((n) => (
+              <div
+                key={n.key}
+                className="card"
+                style={{ minWidth: 180, maxWidth: 180, padding: 10, fontSize: 11 }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                  <span style={{ fontWeight: 600, fontSize: 12 }}>{n.name}</span>
+                  <span style={{
+                    background: "#fff3cd", color: "#856404",
+                    fontSize: 9, padding: "1px 5px", borderRadius: 3,
+                    fontWeight: 700, letterSpacing: "0.03em",
+                  }}>UPDATED</span>
+                </div>
+                <div style={{ color: "var(--muted)", marginBottom: 8 }}>{n.sourceName}</div>
+                {n.description && (
+                  <div style={{ color: "var(--text)", lineHeight: 1.35, minHeight: 42, marginBottom: 8 }}>
+                    {n.description}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 6 }}>
+                  <Link
+                    to={`/diff?mode=version-vs-version&artifactKey=${encodeURIComponent(n.artifactKey)}&fromSha=${n.fromSha}&toSha=${n.toSha}`}
+                    className="btn"
+                    style={{ fontSize: 10, padding: "3px 8px", textDecoration: "none" }}
+                  >
+                    View diff
                   </Link>
                   <button
                     className="btn secondary"
@@ -288,7 +335,6 @@ export function Dashboard() {
           ))}
         </div>
       </section>
-
     </>
   );
 }

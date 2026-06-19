@@ -67,8 +67,21 @@ export interface NewArtifactNotification {
   description: string | null;
 }
 
+export interface UpdatedArtifactNotification {
+  kind: "updated-artifact";
+  key: string;
+  artifactKey: string;
+  sourceRepoId: string;
+  sourceName: string;
+  fromSha: string;
+  toSha: string;
+  name: string;
+  description: string | null;
+}
+
 export interface NotificationsResponse {
   newArtifacts: NewArtifactNotification[];
+  updatedArtifacts: UpdatedArtifactNotification[];
 }
 
 export interface FileDiff {

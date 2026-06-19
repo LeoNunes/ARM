@@ -3,7 +3,13 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { MemoryRouter } from "react-router-dom";
 import { Dashboard } from "../../web/pages/Dashboard.tsx";
-import type { NewArtifactNotification, InstallWithStatus, WorkingRepo, SkillsRepo } from "../../web/api.ts";
+import type {
+  NewArtifactNotification,
+  UpdatedArtifactNotification,
+  InstallWithStatus,
+  WorkingRepo,
+  SkillsRepo,
+} from "../../web/api.ts";
 
 afterEach(cleanup);
 
@@ -14,6 +20,18 @@ const mockNewArtifact: NewArtifactNotification = {
   sourceRepoId: "src1",
   sourceName: "superpowers",
   sha: "abc123",
+  name: "foo",
+  description: "Does foo things.",
+};
+
+const mockUpdatedArtifact: UpdatedArtifactNotification = {
+  kind: "updated-artifact",
+  key: "updatedArtifact:src1:src1:skills/foo:def456",
+  artifactKey: "src1:skills/foo",
+  sourceRepoId: "src1",
+  sourceName: "superpowers",
+  fromSha: "abc123",
+  toSha: "def456",
   name: "foo",
   description: "Does foo things.",
 };
@@ -43,6 +61,7 @@ const mockSkillsRepo: SkillsRepo = {
 
 function makeMockFetch(overrides: {
   newArtifacts?: NewArtifactNotification[];
+  updatedArtifacts?: UpdatedArtifactNotification[];
   workingRepos?: WorkingRepo[];
   installs?: Record<string, InstallWithStatus[]>;
   skillsRepos?: SkillsRepo[];
@@ -50,13 +69,16 @@ function makeMockFetch(overrides: {
 } = {}) {
   const {
     newArtifacts = [],
+    updatedArtifacts = [],
     workingRepos = [],
     installs = {},
     skillsRepos = [],
     artifacts = [],
   } = overrides;
   return vi.fn(async (url: string) => {
-    if (url === "/api/notifications") return new Response(JSON.stringify({ newArtifacts }), { status: 200 });
+    if (url === "/api/notifications") {
+      return new Response(JSON.stringify({ newArtifacts, updatedArtifacts }), { status: 200 });
+    }
     if (url === "/api/working-repos") return new Response(JSON.stringify(workingRepos), { status: 200 });
     if (url === "/api/skills-repos") return new Response(JSON.stringify(skillsRepos), { status: 200 });
     if (url.startsWith("/api/artifacts")) return new Response(JSON.stringify(artifacts), { status: 200 });
@@ -75,7 +97,7 @@ function renderDashboard() {
 }
 
 describe("Dashboard — new-skill cards", () => {
-  it("renders 'NEW SKILLS' section when there are new-artifact notifications", async () => {
+  it("renders 'NEW SKILLS' section when there are only new-artifact notifications", async () => {
     globalThis.fetch = makeMockFetch({ newArtifacts: [mockNewArtifact] });
     renderDashboard();
     expect(await screen.findByText("NEW SKILLS")).toBeTruthy();
@@ -84,7 +106,7 @@ describe("Dashboard — new-skill cards", () => {
     expect(await screen.findByText("Does foo things.")).toBeTruthy();
   });
 
-  it("renders View and Dismiss buttons for each card (no Install)", async () => {
+  it("renders View and Dismiss buttons for each new-artifact card (no Install)", async () => {
     globalThis.fetch = makeMockFetch({ newArtifacts: [mockNewArtifact] });
     renderDashboard();
     expect(await screen.findByRole("link", { name: "View" })).toBeTruthy();
@@ -92,21 +114,71 @@ describe("Dashboard — new-skill cards", () => {
     expect(screen.queryByRole("button", { name: "Install" })).toBeNull();
   });
 
-  it("does not render 'NEW SKILLS' section when there are no new notifications", async () => {
-    globalThis.fetch = makeMockFetch({ newArtifacts: [] });
+  it("does not render section when both arrays are empty", async () => {
+    globalThis.fetch = makeMockFetch({ newArtifacts: [], updatedArtifacts: [] });
     renderDashboard();
     await screen.findByText("WORKING REPOS");
     expect(screen.queryByText("NEW SKILLS")).toBeNull();
+    expect(screen.queryByText("UPDATED SKILLS")).toBeNull();
+    expect(screen.queryByText("NEW & UPDATED SKILLS")).toBeNull();
   });
 
-  it("calls dismiss API when Dismiss is clicked", async () => {
+  it("calls dismiss API when Dismiss is clicked on new-artifact card", async () => {
     const mockFetch = makeMockFetch({ newArtifacts: [mockNewArtifact] });
     globalThis.fetch = mockFetch;
     renderDashboard();
     const dismissBtn = await screen.findByRole("button", { name: "Dismiss" });
     fireEvent.click(dismissBtn);
-    await screen.findByText("WORKING REPOS"); // wait for re-render
-    // Dismiss was called
+    await screen.findByText("WORKING REPOS");
+    const calls = mockFetch.mock.calls;
+    const dismissCall = calls.find(([url, opts]: [string, RequestInit]) =>
+      url === "/api/notifications/dismiss" && opts?.method === "POST"
+    );
+    expect(dismissCall).toBeTruthy();
+  });
+});
+
+describe("Dashboard — updated-skill cards", () => {
+  it("renders 'UPDATED SKILLS' section when there are only updated-artifact notifications", async () => {
+    globalThis.fetch = makeMockFetch({ updatedArtifacts: [mockUpdatedArtifact] });
+    renderDashboard();
+    expect(await screen.findByText("UPDATED SKILLS")).toBeTruthy();
+    expect(await screen.findByText("foo")).toBeTruthy();
+    expect(await screen.findByText("UPDATED")).toBeTruthy();
+  });
+
+  it("renders 'NEW & UPDATED SKILLS' when both kinds are present", async () => {
+    globalThis.fetch = makeMockFetch({
+      newArtifacts: [mockNewArtifact],
+      updatedArtifacts: [mockUpdatedArtifact],
+    });
+    renderDashboard();
+    expect(await screen.findByText("NEW & UPDATED SKILLS")).toBeTruthy();
+  });
+
+  it("renders View diff link pointing to version-vs-version diff page", async () => {
+    globalThis.fetch = makeMockFetch({ updatedArtifacts: [mockUpdatedArtifact] });
+    renderDashboard();
+    const link = await screen.findByRole("link", { name: "View diff" });
+    const href = link.getAttribute("href") ?? "";
+    expect(href).toContain("mode=version-vs-version");
+    expect(href).toContain("fromSha=abc123");
+    expect(href).toContain("toSha=def456");
+  });
+
+  it("renders Dismiss button on updated-artifact card", async () => {
+    globalThis.fetch = makeMockFetch({ updatedArtifacts: [mockUpdatedArtifact] });
+    renderDashboard();
+    expect(await screen.findByRole("button", { name: "Dismiss" })).toBeTruthy();
+  });
+
+  it("removes card after dismiss is clicked", async () => {
+    const mockFetch = makeMockFetch({ updatedArtifacts: [mockUpdatedArtifact] });
+    globalThis.fetch = mockFetch;
+    renderDashboard();
+    const dismissBtn = await screen.findByRole("button", { name: "Dismiss" });
+    fireEvent.click(dismissBtn);
+    await screen.findByText("WORKING REPOS");
     const calls = mockFetch.mock.calls;
     const dismissCall = calls.find(([url, opts]: [string, RequestInit]) =>
       url === "/api/notifications/dismiss" && opts?.method === "POST"
@@ -129,12 +201,11 @@ describe("Dashboard — working-repo cards", () => {
   it("renders notification dot when any install has non-up-to-date status", async () => {
     globalThis.fetch = makeMockFetch({
       workingRepos: [mockWorkingRepo],
-      installs: { w1: [mockInstall] }, // status: update-available
+      installs: { w1: [mockInstall] },
     });
     renderDashboard();
     await screen.findByText("my-app");
-    const dot = document.querySelector("[data-testid='notification-dot']");
-    expect(dot).toBeTruthy();
+    expect(document.querySelector("[data-testid='notification-dot']")).toBeTruthy();
   });
 
   it("does not render notification dot when all installs are up-to-date", async () => {
@@ -144,8 +215,7 @@ describe("Dashboard — working-repo cards", () => {
     });
     renderDashboard();
     await screen.findByText("my-app");
-    const dot = document.querySelector("[data-testid='notification-dot']");
-    expect(dot).toBeNull();
+    expect(document.querySelector("[data-testid='notification-dot']")).toBeNull();
   });
 
   it("renders installed-skill chips", async () => {
@@ -154,7 +224,6 @@ describe("Dashboard — working-repo cards", () => {
       installs: { w1: [mockInstall] },
     });
     renderDashboard();
-    // Chip shows last segment of artifactKey rel path
     expect(await screen.findByText("foo")).toBeTruthy();
   });
 });
