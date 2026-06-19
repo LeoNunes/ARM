@@ -91,7 +91,14 @@ export function WorkingRepoDetail() {
             const name = rel?.split("/").pop() ?? rel;
             return (
               <tr key={i.id}>
-                <td>{name}</td>
+                <td>
+                  <Link
+                    to={`/artifacts?artifactKey=${encodeURIComponent(i.artifactKey)}`}
+                    style={{ color: "inherit", textDecoration: "none", fontWeight: 500 }}
+                  >
+                    {name}
+                  </Link>
+                </td>
                 <td style={{ color: "var(--muted)" }}>{i.sourceRepoId.slice(0, 8)}</td>
                 <td>{i.agent}</td>
                 <td style={{ color: "var(--muted)" }}>{i.installedCommitSha.slice(0, 7)}</td>

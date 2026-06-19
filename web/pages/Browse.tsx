@@ -1,5 +1,6 @@
 // web/pages/Browse.tsx
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, Artifact } from "../api.ts";
 import { InstallModal } from "../components/InstallModal.tsx";
 import { useAutoRefresh } from "../hooks/useAutoRefresh.ts";
@@ -33,7 +34,14 @@ export function Browse() {
         <tbody>
           {artifacts.map((a) => (
             <tr key={a.artifactKey}>
-              <td>{a.name}</td>
+              <td>
+                <Link
+                  to={`/artifacts?artifactKey=${encodeURIComponent(a.artifactKey)}`}
+                  style={{ color: "inherit", textDecoration: "none", fontWeight: 500 }}
+                >
+                  {a.name}
+                </Link>
+              </td>
               <td style={{ color: "var(--muted)" }}>{a.sourceRepoId.slice(0, 8)}</td>
               <td style={{ color: "var(--muted)" }}>{a.description ?? "—"}</td>
               <td><button className="btn" onClick={() => setInstalling(a)}>Install</button></td>

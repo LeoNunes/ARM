@@ -41,7 +41,14 @@ export function SkillsRepoDetail() {
         <tbody>
           {artifacts.map((a) => (
             <tr key={a.artifactKey}>
-              <td>{a.name}</td>
+              <td>
+                <Link
+                  to={`/artifacts?artifactKey=${encodeURIComponent(a.artifactKey)}`}
+                  style={{ color: "inherit", textDecoration: "none", fontWeight: 500 }}
+                >
+                  {a.name}
+                </Link>
+              </td>
               <td>{a.type}</td>
               <td style={{ color: "var(--muted)" }}>{a.description ?? "—"}</td>
               <td style={{ color: "var(--muted)" }}>{a.rootRelativePath}</td>
