@@ -6,6 +6,7 @@ import { WorkingRepoStore } from "../../src/state/working-repos.ts";
 import { InstallsStore } from "../../src/state/installs.ts";
 import { ArtifactSnapshotsStore } from "../../src/state/artifact-snapshots.ts";
 import { DismissedNotificationsStore } from "../../src/state/notifications.ts";
+import { ArtifactShaBaselineStore } from "../../src/state/artifact-sha-baseline.ts";
 import { ActivityLogStore } from "../../src/state/activity-log.ts";
 import { buildRegistries } from "../../src/adapters/index.ts";
 import { buildFixtureRepo } from "../helpers/build-fixture-repo.ts";
@@ -24,9 +25,10 @@ async function setup() {
   const installs = new InstallsStore(stateDir);
   const snapshots = new ArtifactSnapshotsStore(stateDir);
   const dismissed = new DismissedNotificationsStore(stateDir);
+  const shaBaseline = new ArtifactShaBaselineStore(stateDir);
   const registries = buildRegistries();
   const activityLog = new ActivityLogStore(stateDir);
-  app = await buildServer({ stateDir, cacheDir, settings, skillsRepos, workingRepos, installs, registries, snapshots, dismissed, activityLog });
+  app = await buildServer({ stateDir, cacheDir, settings, skillsRepos, workingRepos, installs, registries, snapshots, dismissed, activityLog, shaBaseline });
 }
 
 beforeEach(setup);

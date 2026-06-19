@@ -8,6 +8,7 @@ import { buildRegistries } from "../../src/adapters/index.ts";
 import { ArtifactSnapshotsStore } from "../../src/state/artifact-snapshots.ts";
 import { DismissedNotificationsStore } from "../../src/state/notifications.ts";
 import { ActivityLogStore } from "../../src/state/activity-log.ts";
+import { ArtifactShaBaselineStore } from "../../src/state/artifact-sha-baseline.ts";
 import { tmpDir } from "../helpers/tmp-dir.ts";
 import { buildFixtureRepo } from "../helpers/build-fixture-repo.ts";
 import { simpleGit } from "simple-git";
@@ -26,6 +27,7 @@ async function makeDeps() {
     snapshots: new ArtifactSnapshotsStore(stateDir),
     dismissed: new DismissedNotificationsStore(stateDir),
     activityLog: new ActivityLogStore(stateDir),
+    shaBaseline: new ArtifactShaBaselineStore(stateDir),
   };
 }
 
