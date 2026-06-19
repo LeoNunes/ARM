@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.ts";
-import type { NewArtifactNotification, WorkingRepo, SkillsRepo, InstallWithStatus, Artifact, ActivityLogEntry, ActivityCategory } from "../api.ts";
-import { InstallModal } from "../components/InstallModal.tsx";
+import type { NewArtifactNotification, WorkingRepo, SkillsRepo, InstallWithStatus, ActivityLogEntry, ActivityCategory } from "../api.ts";
 import { useAutoRefresh } from "../hooks/useAutoRefresh.ts";
 
 export function Dashboard() {
@@ -10,7 +9,6 @@ export function Dashboard() {
   const [working, setWorking] = useState<WorkingRepo[]>([]);
   const [sources, setSources] = useState<SkillsRepo[]>([]);
   const [installsByWr, setInstallsByWr] = useState<Record<string, InstallWithStatus[]>>({});
-  const [installArtifact, setInstallArtifact] = useState<Artifact | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activityEntries, setActivityEntries] = useState<ActivityLogEntry[]>([]);
   const [activityCategory, setActivityCategory] = useState<ActivityCategory | "all">("all");
@@ -51,41 +49,6 @@ export function Dashboard() {
       setNewArtifacts((prev) => prev.filter((n) => n.key !== key));
     } catch (e) {
       setError((e as Error).message);
-    }
-  };
-
-  const handleInstallClick = async (n: NewArtifactNotification) => {
-    try {
-      // Try to fetch the full artifact; fall back to constructing one from notification data
-      const artifacts = await api.listArtifacts({ sourceRepoId: n.sourceRepoId });
-      const found = artifacts.find((a) => a.artifactKey === n.artifactKey);
-      if (found) {
-        setInstallArtifact(found);
-      } else {
-        // Construct a minimal Artifact from the notification
-        setInstallArtifact({
-          artifactKey: n.artifactKey,
-          sourceRepoId: n.sourceRepoId,
-          type: "skills",
-          name: n.name,
-          description: n.description,
-          rootRelativePath: n.artifactKey.split(":").slice(1).join(":"),
-          files: [],
-          lastTouchedSha: n.sha,
-        });
-      }
-    } catch {
-      // Construct a minimal Artifact from the notification on error
-      setInstallArtifact({
-        artifactKey: n.artifactKey,
-        sourceRepoId: n.sourceRepoId,
-        type: "skills",
-        name: n.name,
-        description: n.description,
-        rootRelativePath: n.artifactKey.split(":").slice(1).join(":"),
-        files: [],
-        lastTouchedSha: n.sha,
-      });
     }
   };
 
@@ -151,13 +114,13 @@ export function Dashboard() {
                   </div>
                 )}
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button
+                  <Link
+                    to={`/artifacts?artifactKey=${encodeURIComponent(n.artifactKey)}`}
                     className="btn"
-                    style={{ fontSize: 10, padding: "3px 8px" }}
-                    onClick={() => handleInstallClick(n)}
+                    style={{ fontSize: 10, padding: "3px 8px", textDecoration: "none" }}
                   >
-                    Install
-                  </button>
+                    View
+                  </Link>
                   <button
                     className="btn secondary"
                     style={{ fontSize: 10, padding: "3px 4px" }}
@@ -326,13 +289,6 @@ export function Dashboard() {
         </div>
       </section>
 
-      {installArtifact && (
-        <InstallModal
-          artifact={installArtifact}
-          onClose={() => setInstallArtifact(null)}
-          onDone={() => { setInstallArtifact(null); load(); }}
-        />
-      )}
     </>
   );
 }

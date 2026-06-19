@@ -84,11 +84,12 @@ describe("Dashboard — new-skill cards", () => {
     expect(await screen.findByText("Does foo things.")).toBeTruthy();
   });
 
-  it("renders Install and Dismiss buttons for each card", async () => {
+  it("renders View and Dismiss buttons for each card (no Install)", async () => {
     globalThis.fetch = makeMockFetch({ newArtifacts: [mockNewArtifact] });
     renderDashboard();
-    expect(await screen.findByRole("button", { name: "Install" })).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "View" })).toBeTruthy();
     expect(await screen.findByRole("button", { name: "Dismiss" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Install" })).toBeNull();
   });
 
   it("does not render 'NEW SKILLS' section when there are no new notifications", async () => {
