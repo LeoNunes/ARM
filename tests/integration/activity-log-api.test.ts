@@ -41,7 +41,7 @@ describe("GET /api/activity-log", () => {
   it("returns entries newest-first", async () => {
     const deps = await makeDeps();
     await deps.activityLog.add({ ts: "2026-01-01T00:00:00Z", category: "install", summary: "first" });
-    await deps.activityLog.add({ ts: "2026-01-02T00:00:00Z", category: "refresh", summary: "second" });
+    await deps.activityLog.add({ ts: "2026-01-02T00:00:00Z", category: "uninstall", summary: "second" });
     const app = await buildServer(deps);
     const res = await app.inject({ method: "GET", url: "/api/activity-log" });
     const entries = res.json();
@@ -52,7 +52,7 @@ describe("GET /api/activity-log", () => {
   it("filters by category query param", async () => {
     const deps = await makeDeps();
     await deps.activityLog.add({ ts: "2026-01-01T00:00:00Z", category: "install", summary: "install one" });
-    await deps.activityLog.add({ ts: "2026-01-01T00:00:00Z", category: "refresh", summary: "refresh one" });
+    await deps.activityLog.add({ ts: "2026-01-01T00:00:00Z", category: "uninstall", summary: "uninstall one" });
     const app = await buildServer(deps);
     const res = await app.inject({ method: "GET", url: "/api/activity-log?category=install" });
     const entries = res.json();

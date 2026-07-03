@@ -60,7 +60,6 @@ export function Dashboard() {
     "install":     "Install",
     "uninstall":   "Uninstall",
     "re-apply":    "Re-apply",
-    "refresh":     "Refresh",
   };
 
   const ACTIVITY_STYLES: Record<ActivityCategory, React.CSSProperties> = {
@@ -68,7 +67,6 @@ export function Dashboard() {
     "install":     { background: "#d4edda", color: "#155724" },
     "uninstall":   { background: "#f8d7da", color: "#721c24" },
     "re-apply":    { background: "#fff3cd", color: "#856404" },
-    "refresh":     { background: "rgba(255,255,255,0.08)", color: "var(--muted)" },
   };
 
   function formatRelative(ts: string): string {

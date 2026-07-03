@@ -28,21 +28,8 @@ export async function runRefreshPass(deps: RefreshLoopDeps): Promise<void> {
     try {
       await git.fetchAndReset(repo.localClonePath, repo.branch);
       await deps.skillsRepos.update(repo.id, { lastFetchedAt: new Date().toISOString() });
-      await deps.activityLog.add({
-        ts: new Date().toISOString(),
-        category: "refresh",
-        summary: `Refreshed '${repo.name}'`,
-        sourceRepoId: repo.id,
-      });
     } catch (err) {
       process.stderr.write(`refresh-loop: fetch failed for ${repo.name}: ${(err as Error).message}\n`);
-      await deps.activityLog.add({
-        ts: new Date().toISOString(),
-        category: "refresh",
-        summary: `Failed to refresh '${repo.name}'`,
-        detail: (err as Error).message,
-        sourceRepoId: repo.id,
-      });
     }
   }
 

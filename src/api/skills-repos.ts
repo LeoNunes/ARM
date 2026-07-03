@@ -67,12 +67,6 @@ export async function registerSkillsReposRoutes(app: FastifyInstance, deps: Serv
     if (!r) return reply.code(404).send({ code: "skills_repo_not_found" });
     await new GitClient().fetchAndReset(r.localClonePath, r.branch);
     const updated = await deps.skillsRepos.update(r.id, { lastFetchedAt: new Date().toISOString() });
-    deps.activityLog.add({
-      ts: new Date().toISOString(),
-      category: "refresh",
-      summary: `Refreshed '${r.name}'`,
-      sourceRepoId: r.id,
-    }).catch(() => {});
     runAutoUpdatePass({
       installs: deps.installs,
       skillsRepos: deps.skillsRepos,

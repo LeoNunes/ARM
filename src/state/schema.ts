@@ -5,8 +5,7 @@ export type ActivityCategory =
   | "auto-update"
   | "install"
   | "uninstall"
-  | "re-apply"
-  | "refresh";
+  | "re-apply";
 
 export interface ActivityLogEntry {
   id: string;

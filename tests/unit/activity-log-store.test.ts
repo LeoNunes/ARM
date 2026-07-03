@@ -22,7 +22,7 @@ describe("ActivityLogStore", () => {
   it("add persists an entry with generated id, newest first", async () => {
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
     const e1 = await store.add({ ts: "2026-01-01T00:00:00Z", category: "install", summary: "first" });
-    const e2 = await store.add({ ts: "2026-01-02T00:00:00Z", category: "refresh", summary: "second" });
+    const e2 = await store.add({ ts: "2026-01-02T00:00:00Z", category: "uninstall", summary: "second" });
     expect(e1.id).toMatch(UUID_RE);
     expect(e2.id).toMatch(UUID_RE);
     const entries = await store.list();
@@ -32,7 +32,7 @@ describe("ActivityLogStore", () => {
 
   it("list filters by category", async () => {
     await store.add({ ts: "2026-01-01T00:00:00Z", category: "install", summary: "install one" });
-    await store.add({ ts: "2026-01-02T00:00:00Z", category: "refresh", summary: "refresh one" });
+    await store.add({ ts: "2026-01-02T00:00:00Z", category: "uninstall", summary: "uninstall one" });
     const installs = await store.list({ category: "install" });
     expect(installs).toHaveLength(1);
     expect(installs[0]!.category).toBe("install");
@@ -48,7 +48,7 @@ describe("ActivityLogStore", () => {
 
   it("list applies category filter before limit", async () => {
     await store.add({ ts: "2026-01-01T00:00:00Z", category: "install", summary: "install 1" });
-    await store.add({ ts: "2026-01-01T00:00:00Z", category: "refresh", summary: "refresh 1" });
+    await store.add({ ts: "2026-01-01T00:00:00Z", category: "uninstall", summary: "uninstall 1" });
     await store.add({ ts: "2026-01-01T00:00:00Z", category: "install", summary: "install 2" });
     const result = await store.list({ category: "install", limit: 1 });
     expect(result).toHaveLength(1);
@@ -57,7 +57,7 @@ describe("ActivityLogStore", () => {
 
   it("delete removes only the targeted entry", async () => {
     await store.add({ ts: "2026-01-01T00:00:00Z", category: "install", summary: "keep me" });
-    const e = await store.add({ ts: "2026-01-02T00:00:00Z", category: "refresh", summary: "delete me" });
+    const e = await store.add({ ts: "2026-01-02T00:00:00Z", category: "uninstall", summary: "delete me" });
     await store.delete(e.id);
     const remaining = await store.list();
     expect(remaining).toHaveLength(1);
