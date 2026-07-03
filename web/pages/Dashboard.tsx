@@ -108,7 +108,7 @@ export function Dashboard() {
             <span style={{ fontSize: 11, color: "var(--muted)", letterSpacing: "0.05em" }}>{sectionLabel}</span>
             <span style={{ fontSize: 11, color: "var(--muted)" }}>{totalCards} · review or dismiss</span>
           </div>
-          <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {newArtifacts.map((n) => (
               <div
                 key={n.key}
