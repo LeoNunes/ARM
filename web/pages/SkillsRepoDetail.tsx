@@ -50,7 +50,15 @@ export function SkillsRepoDetail() {
                 </Link>
               </td>
               <td>{a.type}</td>
-              <td style={{ color: "var(--muted)" }}>{a.description ?? "—"}</td>
+              <td style={{ color: "var(--muted)" }}>
+                {a.description ? (
+                  <div className="description-clamp" title={a.description} style={{ maxWidth: 320 }}>
+                    {a.description}
+                  </div>
+                ) : (
+                  "—"
+                )}
+              </td>
               <td style={{ color: "var(--muted)" }}>{a.rootRelativePath}</td>
             </tr>
           ))}

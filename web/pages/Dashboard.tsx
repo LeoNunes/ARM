@@ -116,7 +116,11 @@ export function Dashboard() {
                 <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 2 }}>{n.name}</div>
                 <div style={{ color: "var(--muted)", marginBottom: 8 }}>{n.sourceName}</div>
                 {n.description && (
-                  <div style={{ color: "var(--text)", lineHeight: 1.35, minHeight: 42, marginBottom: 8 }}>
+                  <div
+                    className="description-clamp"
+                    title={n.description}
+                    style={{ color: "var(--text)", lineHeight: 1.35, minHeight: 42, marginBottom: 8 }}
+                  >
                     {n.description}
                   </div>
                 )}
@@ -154,7 +158,11 @@ export function Dashboard() {
                 </div>
                 <div style={{ color: "var(--muted)", marginBottom: 8 }}>{n.sourceName}</div>
                 {n.description && (
-                  <div style={{ color: "var(--text)", lineHeight: 1.35, minHeight: 42, marginBottom: 8 }}>
+                  <div
+                    className="description-clamp"
+                    title={n.description}
+                    style={{ color: "var(--text)", lineHeight: 1.35, minHeight: 42, marginBottom: 8 }}
+                  >
                     {n.description}
                   </div>
                 )}

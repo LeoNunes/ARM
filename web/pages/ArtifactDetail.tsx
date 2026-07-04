@@ -98,7 +98,11 @@ export function ArtifactDetail() {
         </button>
       </div>
       {artifact.description && (
-        <p style={{ color: "var(--muted)", marginTop: 4, marginBottom: 4, fontSize: 13 }}>
+        <p
+          className="description-clamp"
+          title={artifact.description}
+          style={{ color: "var(--muted)", marginTop: 4, marginBottom: 4, fontSize: 13, maxWidth: 640 }}
+        >
           {artifact.description}
         </p>
       )}

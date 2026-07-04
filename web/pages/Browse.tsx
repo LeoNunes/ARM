@@ -43,7 +43,15 @@ export function Browse() {
                 </Link>
               </td>
               <td style={{ color: "var(--muted)" }}>{a.sourceRepoId.slice(0, 8)}</td>
-              <td style={{ color: "var(--muted)" }}>{a.description ?? "—"}</td>
+              <td style={{ color: "var(--muted)" }}>
+                {a.description ? (
+                  <div className="description-clamp" title={a.description} style={{ maxWidth: 320 }}>
+                    {a.description}
+                  </div>
+                ) : (
+                  "—"
+                )}
+              </td>
               <td><button className="btn" onClick={() => setInstalling(a)}>Install</button></td>
             </tr>
           ))}

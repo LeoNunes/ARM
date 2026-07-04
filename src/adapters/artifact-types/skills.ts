@@ -16,7 +16,7 @@ export const skillsAdapter: ArtifactTypeAdapter = {
       const rootRelativePath = `${configuredPath}/${name}`;
       const files = await listFilesRecursive(path.join(sourceRepoPath, rootRelativePath), rootRelativePath);
       const skillMd = path.join(sourceRepoPath, rootRelativePath, "SKILL.md");
-      const description = existsSync(skillMd) ? firstHeading(await readFile(skillMd, "utf8")) : null;
+      const description = existsSync(skillMd) ? frontmatterDescription(await readFile(skillMd, "utf8")) : null;
       const lastTouchedSha = await lastSHATouching(sourceRepoPath, ref, files);
       out.push({
         artifactKey: `${sourceRepoId}:${rootRelativePath}`,
@@ -52,7 +52,14 @@ async function listFilesRecursive(absDir: string, relPrefix: string): Promise<st
   return out;
 }
 
-function firstHeading(md: string): string | null {
-  const m = md.match(/^#\s+(.+)\s*$/m);
-  return m ? m[1]!.trim() : null;
+function frontmatterDescription(md: string): string | null {
+  const frontmatterMatch = md.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
+  if (!frontmatterMatch) return null;
+  const descriptionMatch = frontmatterMatch[1]!.match(/^description:\s*(.*)$/m);
+  if (!descriptionMatch) return null;
+  let value = descriptionMatch[1]!.trim();
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    value = value.slice(1, -1);
+  }
+  return value || null;
 }
