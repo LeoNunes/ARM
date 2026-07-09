@@ -9,6 +9,7 @@ import { ArtifactSnapshotsStore } from "../../src/state/artifact-snapshots.ts";
 import { DismissedNotificationsStore } from "../../src/state/notifications.ts";
 import { ActivityLogStore } from "../../src/state/activity-log.ts";
 import { ArtifactShaBaselineStore } from "../../src/state/artifact-sha-baseline.ts";
+import { FavoritesStore } from "../../src/state/favorites.ts";
 import { tmpDir } from "../helpers/tmp-dir.ts";
 import { buildFixtureRepo } from "../helpers/build-fixture-repo.ts";
 import { simpleGit } from "simple-git";
@@ -28,6 +29,7 @@ async function makeDeps() {
     dismissed: new DismissedNotificationsStore(stateDir),
     activityLog: new ActivityLogStore(stateDir),
     shaBaseline: new ArtifactShaBaselineStore(stateDir),
+    favorites: new FavoritesStore(stateDir),
   };
 }
 
@@ -452,5 +454,81 @@ describe("Activity log instrumentation", () => {
     expect(entries[0].category).toBe("install");
     expect(entries[0].summary).toContain("Installed");
     expect(entries[0].artifactKey).toBe(artifact.artifactKey);
+  });
+});
+
+describe("API /artifacts — favorites", () => {
+  async function seedTwoArtifacts() {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    const fx = await buildFixtureRepo([
+      { message: "init", files: {
+        "ai/skills/zulu/SKILL.md": "# Zulu\n",
+        "ai/skills/alpha/SKILL.md": "# Alpha\n",
+      } },
+    ]);
+    await app.inject({
+      method: "POST", url: "/api/skills-repos",
+      payload: { name: "src", gitUrl: fx.fileUrl, branch: "main", artifactPaths: { skills: ["ai/skills"] } },
+    });
+    const arts = (await app.inject({ method: "GET", url: "/api/artifacts" })).json();
+    const zulu = arts.find((a: { name: string }) => a.name === "zulu");
+    const alpha = arts.find((a: { name: string }) => a.name === "alpha");
+    return { app, zulu, alpha };
+  }
+
+  it("GET /api/artifacts includes isFavorite=false by default, alphabetically sorted", async () => {
+    const { app } = await seedTwoArtifacts();
+    const res = await app.inject({ method: "GET", url: "/api/artifacts" });
+    const arts = res.json();
+    expect(arts.map((a: { name: string }) => a.name)).toEqual(["alpha", "zulu"]);
+    expect(arts.every((a: { isFavorite: boolean }) => a.isFavorite === false)).toBe(true);
+  });
+
+  it("PUT /api/artifacts/:artifactKey/favorite marks an artifact favorited and sorts it first", async () => {
+    const { app, zulu } = await seedTwoArtifacts();
+    const put = await app.inject({
+      method: "PUT", url: `/api/artifacts/${encodeURIComponent(zulu.artifactKey)}/favorite`,
+    });
+    expect(put.statusCode).toBe(204);
+
+    const res = await app.inject({ method: "GET", url: "/api/artifacts" });
+    const arts = res.json();
+    expect(arts.map((a: { name: string }) => a.name)).toEqual(["zulu", "alpha"]);
+    expect(arts.find((a: { name: string }) => a.name === "zulu").isFavorite).toBe(true);
+  });
+
+  it("GET /api/artifacts/:artifactKey reflects favorited status", async () => {
+    const { app, alpha } = await seedTwoArtifacts();
+    await app.inject({ method: "PUT", url: `/api/artifacts/${encodeURIComponent(alpha.artifactKey)}/favorite` });
+    const res = await app.inject({ method: "GET", url: `/api/artifacts/${encodeURIComponent(alpha.artifactKey)}` });
+    expect(res.json().isFavorite).toBe(true);
+  });
+
+  it("DELETE /api/artifacts/:artifactKey/favorite unmarks a favorited artifact", async () => {
+    const { app, zulu } = await seedTwoArtifacts();
+    await app.inject({ method: "PUT", url: `/api/artifacts/${encodeURIComponent(zulu.artifactKey)}/favorite` });
+    const del = await app.inject({
+      method: "DELETE", url: `/api/artifacts/${encodeURIComponent(zulu.artifactKey)}/favorite`,
+    });
+    expect(del.statusCode).toBe(204);
+    const res = await app.inject({ method: "GET", url: `/api/artifacts/${encodeURIComponent(zulu.artifactKey)}` });
+    expect(res.json().isFavorite).toBe(false);
+  });
+
+  it("PUT on an unknown artifactKey returns 404 artifact_not_found", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    const res = await app.inject({ method: "PUT", url: "/api/artifacts/nonexistent%3Afoo/favorite" });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().code).toBe("artifact_not_found");
+  });
+
+  it("DELETE on an unknown artifactKey returns 404 artifact_not_found", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    const res = await app.inject({ method: "DELETE", url: "/api/artifacts/nonexistent%3Afoo/favorite" });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().code).toBe("artifact_not_found");
   });
 });

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { ServerDeps } from '../server';
 import { discoverArtifacts } from '../discovery/discover';
+import { sortByFavorite } from '../discovery/sort';
 import { readFileAtSha } from '../git/show';
 import { recentShasTouching } from '../git/log';
 import { GitClient } from '../git/client';
@@ -13,7 +14,7 @@ export async function registerArtifactsRoutes(app: FastifyInstance, deps: Server
     async (req) => {
       const all = await discoverAll(deps);
       const { q, type, sourceRepoId } = req.query ?? {};
-      return all.filter((a) => {
+      const filtered = all.filter((a) => {
         if (sourceRepoId && a.sourceRepoId !== sourceRepoId) return false;
         if (type && a.type !== type) return false;
         if (q) {
@@ -24,13 +25,17 @@ export async function registerArtifactsRoutes(app: FastifyInstance, deps: Server
         }
         return true;
       });
+      const favorites = await deps.favorites.listFavorites();
+      const sorted = sortByFavorite(filtered, favorites);
+      return sorted.map((a) => ({ ...a, isFavorite: favorites.has(a.artifactKey) }));
     },
   );
 
   app.get<{ Params: { artifactKey: string } }>("/api/artifacts/:artifactKey", async (req, reply) => {
     const a = (await discoverAll(deps)).find((x) => x.artifactKey === decodeURIComponent(req.params.artifactKey));
     if (!a) return reply.code(404).send({ code: "artifact_not_found" });
-    return a;
+    const isFavorite = await deps.favorites.isFavorite(a.artifactKey);
+    return { ...a, isFavorite };
   });
 
   app.get<{ Params: { artifactKey: string; "*": string }; Querystring: { sha?: string } }>(
@@ -65,6 +70,22 @@ export async function registerArtifactsRoutes(app: FastifyInstance, deps: Server
       return history;
     },
   );
+
+  app.put<{ Params: { artifactKey: string } }>("/api/artifacts/:artifactKey/favorite", async (req, reply) => {
+    const key = decodeURIComponent(req.params.artifactKey);
+    const a = (await discoverAll(deps)).find((x) => x.artifactKey === key);
+    if (!a) throw new AppError("artifact_not_found", `artifact not found: ${key}`);
+    await deps.favorites.setFavorite(key, true);
+    return reply.code(204).send();
+  });
+
+  app.delete<{ Params: { artifactKey: string } }>("/api/artifacts/:artifactKey/favorite", async (req, reply) => {
+    const key = decodeURIComponent(req.params.artifactKey);
+    const a = (await discoverAll(deps)).find((x) => x.artifactKey === key);
+    if (!a) throw new AppError("artifact_not_found", `artifact not found: ${key}`);
+    await deps.favorites.setFavorite(key, false);
+    return reply.code(204).send();
+  });
 }
 
 async function discoverAll(deps: ServerDeps): Promise<DiscoveredArtifact[]> {

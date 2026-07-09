@@ -9,6 +9,7 @@ import { ArtifactSnapshotsStore } from './state/artifact-snapshots';
 import { DismissedNotificationsStore } from './state/notifications';
 import { ArtifactShaBaselineStore } from './state/artifact-sha-baseline';
 import { ActivityLogStore } from './state/activity-log';
+import { FavoritesStore } from './state/favorites';
 import { pickFreePort } from './ports';
 import { runAutoUpdatePass } from './engine/update-pass';
 import { startRefreshLoop } from './engine/refresh-loop';
@@ -26,9 +27,10 @@ async function main() {
   const dismissed = new DismissedNotificationsStore(stateDir);
   const shaBaseline = new ArtifactShaBaselineStore(stateDir);
   const activityLog = new ActivityLogStore(stateDir);
+  const favorites = new FavoritesStore(stateDir);
   const app = await buildServer({
     stateDir, cacheDir, settings, skillsRepos, workingRepos, installs,
-    registries, snapshots, dismissed, shaBaseline, activityLog,
+    registries, snapshots, dismissed, shaBaseline, activityLog, favorites,
   });
   const desired = (await settings.read()).mcpPort;
   const port = await pickFreePort(desired);

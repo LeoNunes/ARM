@@ -14,6 +14,7 @@ import type { ArtifactSnapshotsStore } from './state/artifact-snapshots';
 import type { DismissedNotificationsStore } from './state/notifications';
 import type { ActivityLogStore } from './state/activity-log';
 import type { ArtifactShaBaselineStore } from './state/artifact-sha-baseline';
+import type { FavoritesStore } from './state/favorites';
 
 export interface ServerDeps {
   stateDir: string;
@@ -27,6 +28,7 @@ export interface ServerDeps {
   dismissed: DismissedNotificationsStore;
   activityLog: ActivityLogStore;
   shaBaseline: ArtifactShaBaselineStore;
+  favorites: FavoritesStore;
 }
 
 export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
