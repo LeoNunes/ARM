@@ -16,7 +16,7 @@ beforeEach(() => {
 const artifact: Artifact = {
   artifactKey: "src1:ai/skills/foo", sourceRepoId: "src1", type: "skills",
   name: "foo", description: null, rootRelativePath: "ai/skills/foo",
-  files: ["ai/skills/foo/SKILL.md"], lastTouchedSha: "abc",
+  files: ["ai/skills/foo/SKILL.md"], lastTouchedSha: "abc", isFavorite: false,
 };
 
 describe("InstallModal", () => {

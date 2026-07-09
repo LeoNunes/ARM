@@ -32,6 +32,7 @@ export interface Artifact {
   artifactKey: string; sourceRepoId: string; type: "skills";
   name: string; description: string | null;
   rootRelativePath: string; files: string[]; lastTouchedSha: string | null;
+  isFavorite: boolean;
 }
 export interface Install {
   id: string; artifactKey: string; sourceRepoId: string;
@@ -156,6 +157,8 @@ export const api = {
     const qs = params.toString();
     return req<Artifact[]>("GET", `/api/artifacts${qs ? `?${qs}` : ""}`, undefined, signal);
   },
+  setFavorite: (artifactKey: string, favorited: boolean) =>
+    req<void>(favorited ? "PUT" : "DELETE", `/api/artifacts/${encodeURIComponent(artifactKey)}/favorite`),
 
   listInstallsByWorkingRepo: (workingRepoId: string) =>
     req<InstallWithStatus[]>("GET", `/api/working-repos/${workingRepoId}/installs`),
