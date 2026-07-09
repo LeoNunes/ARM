@@ -191,6 +191,21 @@ describe("MCP search_artifacts", () => {
     expect(result.isError).toBeFalsy();
     expect(parseResult(result)).toHaveLength(0);
   });
+
+  it("sorts favorited artifacts first and includes isFavorite on each result", async () => {
+    const deps = await makeDeps();
+    await seedRepo(deps);
+    const { client } = await makeMcpClient(deps);
+    const before = parseResult(await client.callTool({ name: "search_artifacts", arguments: {} }));
+    const bar = before.find((a: { name: string }) => a.name === "bar");
+    await deps.favorites.setFavorite(bar.artifactKey, true);
+
+    const result = await client.callTool({ name: "search_artifacts", arguments: {} });
+    const artifacts = parseResult(result);
+    expect(artifacts[0].name).toBe("bar");
+    expect(artifacts[0].isFavorite).toBe(true);
+    expect(artifacts[1].isFavorite).toBe(false);
+  });
 });
 
 // ─── get_artifact ─────────────────────────────────────────────────────────────
@@ -228,6 +243,25 @@ describe("MCP get_artifact", () => {
     const result = await client.callTool({ name: "get_artifact", arguments: { artifactKey: "bad:key" } });
     expect(result.isError).toBe(true);
     expect(parseResult(result).code).toBe("artifact_not_found");
+  });
+
+  it("includes isFavorite in the response", async () => {
+    const deps = await makeDeps();
+    const fx = await buildFixtureRepo([
+      { message: "add foo", files: { "ai/skills/foo/SKILL.md": "# Foo\n" } },
+    ]);
+    const cloneDest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fx.fileUrl, cloneDest, "main");
+    const repo = await deps.skillsRepos.add({
+      name: "src", gitUrl: fx.fileUrl, branch: "main",
+      artifactPaths: { skills: ["ai/skills"] }, presetId: null,
+      localClonePath: cloneDest, lastFetchedAt: null,
+    });
+    const artifactKey = `${repo.id}:ai/skills/foo`;
+    await deps.favorites.setFavorite(artifactKey, true);
+    const { client } = await makeMcpClient(deps);
+    const result = await client.callTool({ name: "get_artifact", arguments: { artifactKey } });
+    expect(parseResult(result).isFavorite).toBe(true);
   });
 });
 

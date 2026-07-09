@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ServerDeps } from "../server.js";
 import { discoverArtifacts } from "../discovery/discover.js";
+import { sortByFavorite } from "../discovery/sort.js";
 import { readFileAtSha } from "../git/show.js";
 import { recentShasTouching } from "../git/log.js";
 import { GitClient } from "../git/client.js";
@@ -74,7 +75,10 @@ export function createMcpServer(deps: ServerDeps): McpServer {
         }
         return true;
       });
-      return { content: [{ type: "text" as const, text: JSON.stringify(filtered) }] };
+      const favorites = await deps.favorites.listFavorites();
+      const sorted = sortByFavorite(filtered, favorites);
+      const withFavorites = sorted.map((a) => ({ ...a, isFavorite: favorites.has(a.artifactKey) }));
+      return { content: [{ type: "text" as const, text: JSON.stringify(withFavorites) }] };
     },
   );
 
@@ -94,8 +98,9 @@ export function createMcpServer(deps: ServerDeps): McpServer {
       } catch {
         // leave versionHistory empty if the clone is temporarily unreachable
       }
+      const isFavorite = await deps.favorites.isFavorite(artifact.artifactKey);
       return {
-        content: [{ type: "text" as const, text: JSON.stringify({ ...artifact, versionHistory }) }],
+        content: [{ type: "text" as const, text: JSON.stringify({ ...artifact, versionHistory, isFavorite }) }],
       };
     },
   );
