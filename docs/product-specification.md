@@ -47,6 +47,7 @@ A single developer running on their own machine. Out of scope for MVP: multi-use
 - Browse all artifacts (skills + rules) across all registered skills repositories.
 - Search and filter artifacts by name, source repository, and type.
 - Each artifact row links to the artifact's **detail page** (see §4.9), where the user can inspect file content at any version, browse the version history and compare versions, manage all installs of that artifact, and initiate a new install.
+- Mark any artifact as a **favorite**. Favorited artifacts sort first — ahead of non-favorited artifacts — everywhere artifacts are listed (Browse, skills-repo detail, MCP `search_artifacts`), alphabetically within each group. Favoriting has no effect beyond sort order (no separate "favorites only" filter).
 
 ### 4.4 Installing
 
@@ -107,7 +108,7 @@ A single overview page surfaces:
 
 A dedicated page for each artifact, accessible by clicking the artifact name from Browse, SkillsRepoDetail, WorkingRepoDetail, and Dashboard notification cards. The page has four sections:
 
-- **Header** — artifact name, type badge, description, source repo name, and an Install button.
+- **Header** — artifact name, type badge, description, source repo name, a favorite toggle, and an Install button.
 - **File viewer** — a version dropdown (default: latest) and a file picker (left) with raw content display (right). Changing the version re-fetches all file content at that SHA. If the selected SHA is not in the 20-commit history window, it appears as a standalone option.
 - **Version history** — table of the 20 most recent commits touching the artifact's files, with SHA, date, and commit subject. Clicking a SHA sets the file viewer to that version. A two-step Compare flow lets the user select two versions and navigate to the diff page.
 - **Installs** — table of all locations this artifact is installed (across all working repos and global), showing target name, agent, installed version (short SHA — clickable to set the file viewer), status, auto-update, and actions (Update, View diff, View drift, Re-apply, Disable auto-update, Uninstall) matching the same logic as the working-repo detail page. For global installs, drift checking is not applicable.
@@ -118,8 +119,8 @@ The backend exposes a local Model Context Protocol server so AI agents can inter
 
 - `list_skills_repositories` — list all registered source repositories.
 - `list_working_repositories` — list all registered working repositories.
-- `search_artifacts` — search artifacts across all sources, with optional filters by query string, type, and source repo.
-- `get_artifact` — retrieve artifact metadata, file list, and version history.
+- `search_artifacts` — search artifacts across all sources, with optional filters by query string, type, and source repo; results are sorted favorited-artifacts-first and flag whether each is favorited.
+- `get_artifact` — retrieve artifact metadata, file list, version history, and favorited status.
 - `read_artifact_file` — read the content of a specific file within an artifact at a given SHA.
 - `list_installs` — list current installs with status, filterable by working repo, agent, and type.
 - `install_artifact` — install an artifact into a working repository or globally. Agent defaults to the favorite-agent setting.
@@ -155,7 +156,7 @@ The activity log is surfaced in two places:
 
 ### 5.1 Backend supports
 
-- Storing and managing all state: registered skills repos, registered working repos, install records (including the source commit SHA for each install), dismissed notifications, per-install auto-update flags, application settings (e.g., favorite agent, auto-refresh interval), presets, artifact snapshots, per-artifact last-acknowledged SHA baselines, activity log.
+- Storing and managing all state: registered skills repos, registered working repos, install records (including the source commit SHA for each install), dismissed notifications, favorited artifacts, per-install auto-update flags, application settings (e.g., favorite agent, auto-refresh interval), presets, artifact snapshots, per-artifact last-acknowledged SHA baselines, activity log.
 - Performing all git operations against skills repositories (clone, fetch, commit walking, file lookup at a SHA) and computing per-artifact "last touched commit" SHAs.
 - Performing install, uninstall, update, re-apply, and drift-check operations against working repositories.
 - Implementing the file-level "ignore in working repo" mechanism without touching tracked files in those repos.
@@ -166,7 +167,7 @@ The activity log is surfaced in two places:
 
 ### 5.2 Frontend supports
 
-- Browsing and searching artifacts.
+- Browsing and searching artifacts, including marking/unmarking favorites, which sort first.
 - Managing registered skills repositories: add by git URL or by preset, configure per-artifact-type paths, edit, refresh, remove.
 - Managing registered working repositories: add, edit, remove.
 - Installing, uninstalling, and updating artifacts to working repositories or to the user-global location; toggling auto-update per install; choosing the target agent (pre-filled from the favorite-agent setting).

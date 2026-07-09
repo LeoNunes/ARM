@@ -1,6 +1,6 @@
 # AI Resources Manager — Design
 
-> Engineering design for the product described in [`product-specification.md`](./product-specification.md). This document captures architectural decisions, the data model, the adapter layers, the MCP surface, UI structure, error handling, and the testing strategy. It does not restate product capabilities — read the product spec first.
+> Engineering design for the product described in [`product-specification.md`](./product-specification.md). This document captures architectural decisions, the data model, the adapter layers, the MCP surface, UI structure, error handling, favoriting mechanics, and the testing strategy. It does not restate product capabilities — read the product spec first.
 
 Date: 2026-05-20.
 Status: approved through brainstorming; ready to translate into an implementation plan.
@@ -41,6 +41,7 @@ Inside:
   working-repos.json
   installs.json
   dismissed-notifications.json
+  favorites.json
   presets.json          # bundled with the app, read-only
   cache/<sourceRepoId>/ # full clones of registered skills repositories
   logs/arm.log     # rotating log file
@@ -149,6 +150,16 @@ Keys identifying dismissed notifications, so re-occurrence of the same event doe
 {
   "newArtifact:<sourceRepoId>:<artifactKey>:<firstSeenSha>": true,
   "updatedArtifact:<sourceRepoId>:<artifactKey>:<newSha>": true
+}
+```
+
+### `favorites.json`
+
+Flat set of favorited artifact keys (see §8, "Favoriting artifacts"):
+
+```jsonc
+{
+  "<sourceRepoId>:<relative/path>": true
 }
 ```
 
@@ -291,6 +302,8 @@ The Settings → MCP panel renders a copy-ready config snippet per supported age
 
 `install_artifact` defaults the `agent` parameter to `settings.favoriteAgent` when omitted. Errors `agent_not_specified` if both are missing. Errors `already_installed` if an install already exists for the same `(artifactKey, target, agent)` triple — so a global Claude Code install and a global Cursor install of the same artifact can coexist (no `force` in MVP — users re-apply via the UI).
 
+`search_artifacts` results are sorted favorited-artifacts-first (see §8); each result includes an `isFavorite` boolean. `get_artifact` also includes `isFavorite`. There is no MCP tool for marking/unmarking a favorite — favoriting artifacts is a manual UI action only (see §8).
+
 ### Error model
 
 Structured tool errors with stable codes:
@@ -343,11 +356,11 @@ Footer: Close + the relevant primary action (Update / Re-apply / Discard).
 
 ### Other pages
 
-- **Browse** — search input + type/source filter chips, virtualized artifact list, row Install → install modal, row click → artifact detail.
+- **Browse** — search input + type/source filter chips, virtualized artifact list, row favorite star (see §8), row Install → install modal, row click → artifact detail.
 - **Skills repos** — full-page list of registered sources with "+ Register skills repo" button (modal asks for git URL, branch, per-type paths, or a preset).
-- **Skills repo detail** — header (URL/branch/per-type paths/last-fetched + Refresh/Edit/Remove); body lists discovered artifacts.
+- **Skills repo detail** — header (URL/branch/per-type paths/last-fetched + Refresh/Edit/Remove); body lists discovered artifacts, each with a favorite star (see §8).
 - **Working repos** — full-page list with "+ Register working repo" (asks for local path).
-- **Artifact detail** — metadata, file list, version-history table, Install, Compare versions (opens diff view).
+- **Artifact detail** — metadata, file list, version-history table, favorite star in the header (see §8), Install, Compare versions (opens diff view).
 - **Settings** — General (favorite agent), MCP server (status, URL, port, copy-snippet per agent), About (version, state directory path, log file reveal).
 
 ---
@@ -376,13 +389,55 @@ Every failure path surfaces on the relevant resource (repo card, install row, se
 
 ---
 
-## 8. Testing strategy
+## 8. Favoriting artifacts
+
+Users can mark any artifact as a favorite so it sorts to the top wherever artifacts are listed. This is a lightweight, presentation-oriented feature — no new domain concept beyond a persisted flag.
+
+### Storage
+
+Artifacts are never persisted as first-class records — they're rediscovered from the source repos' local clones on every request and identified only by `artifactKey` (`<sourceRepoId>:<relative/path>`, see §2 "Discovery"). Favorite state therefore lives in its own store, `favorites.json` (see §2), following the same flat-key-presence shape as `dismissed-notifications.json`: a JSON object mapping `artifactKey` → `true`. Unfavoriting removes the key rather than writing `false`.
+
+A `FavoritesStore` (the usual `JsonStore`-based class) exposes:
+
+- `listFavorites(): Promise<Set<string>>`
+- `isFavorite(artifactKey: string): Promise<boolean>`
+- `setFavorite(artifactKey: string, favorited: boolean): Promise<void>`
+
+If a source repo is removed or an artifact disappears (renamed, deleted upstream), its `favorites.json` entry is left in place rather than cleaned up. This mirrors the existing `dismissed-notifications.json` behavior: the orphaned key is inert until an artifact with the same key resurfaces, at which point it's treated as still-favorited. This is a deliberate simplification, not an oversight — cross-referencing every store against live discovery results on every write would add complexity for a cosmetic feature.
+
+### Sorting
+
+A single shared helper — `sortByFavorite(artifacts, favoriteKeys)` — implements the ordering rule: favorited artifacts first, then the rest; alphabetical by name within each group. It is called once per request, server-side, by every endpoint that returns a list of artifacts:
+
+- `GET /api/artifacts` (backs both the Browse page and the Skills-repo detail page, which both call this endpoint with different filters).
+- MCP `search_artifacts`.
+
+Centralizing the sort server-side means the three consumer surfaces (Browse, Skills-repo detail, MCP) never implement their own ordering logic and can't drift out of sync with each other.
+
+### API
+
+- `PUT /api/artifacts/:artifactKey/favorite` — marks the artifact favorited. 204 on success, `artifact_not_found` (404) for an unknown key.
+- `DELETE /api/artifacts/:artifactKey/favorite` — unmarks it. Same error behavior.
+- Every artifact-shaped response — `GET /api/artifacts`, `GET /api/artifacts/:artifactKey`, MCP `search_artifacts` and `get_artifact` — gains an `isFavorite: boolean` field so consumers don't need a second round-trip to know current state.
+
+### UI
+
+A clickable star appears on each artifact row in Browse and Skills-repo detail, and in the Artifact detail page header (filled = favorited, outline = not). Clicking toggles state immediately (optimistic UI update, then re-fetch to pick up the new sort position). There is no dedicated "favorites only" filter — favoriting only changes sort order, everywhere artifacts are already listed.
+
+### Scope decisions
+
+- **No MCP write tool.** Favoriting is a manual UI action; agents can read `isFavorite` via `search_artifacts`/`get_artifact` but cannot set it. Revisit if a use case for agent-driven favoriting emerges.
+- **Global, not per-agent or per-working-repo.** Consistent with the single-user local-app model — a favorite is a property of the artifact, not of any particular install target.
+
+---
+
+## 9. Testing strategy
 
 Tests focus on what's hardest to get right: filesystem behavior of installs, drift comparing against the right SHAs, `.git/info/exclude` coherence across install/uninstall cycles. Pure functions get unit tests; UI gets light coverage.
 
 ### Layers
 
-1. **Unit (BE).** Adapter functions (`targetRoot` for every matrix cell; `mapFileName` for both agents; discovery rules), data transforms (version-history diff, drift-check, exclude-block serializer/parser). No I/O.
+1. **Unit (BE).** Adapter functions (`targetRoot` for every matrix cell; `mapFileName` for both agents; discovery rules), data transforms (version-history diff, drift-check, exclude-block serializer/parser). No I/O. Also covers `FavoritesStore` (set/unset/persist/unknown-key-returns-false, mirroring the existing `ArtifactShaBaselineStore` suite) and the `sortByFavorite` helper (favorites first, alphabetical within each group, no-op on an empty favorites set, an orphaned favorite key for a since-removed artifact is silently ignored).
 
 2. **Integration (BE).** Largest layer. Each test creates throwaway tmp dirs and uses the real `git` binary — no `simple-git` mocking. Coverage:
    - Registration: clone a fresh fixture repo (created by helper), assert discovered artifacts and SHAs.
@@ -394,10 +449,11 @@ Tests focus on what's hardest to get right: filesystem behavior of installs, dri
    - Filename mapping: `CLAUDE.md` → `AGENTS.md` for Cursor target; drift correctly compares source `CLAUDE.md` to target `AGENTS.md`.
    - Exclude-block coherence: A install + B install + A uninstall + C install → block contains exactly {B, C}.
    - Rollback on write failure: simulate write failure; assert no record, no leftover files, exclude block unchanged.
+   - Favoriting: `PUT`/`DELETE /api/artifacts/:artifactKey/favorite` round-trip; `GET /api/artifacts` reflects favorites-first sort and `isFavorite` flags; 404 on unknown artifact.
 
-3. **MCP.** Each tool: valid call, `bad_input`, `unsupported_combination`, `already_installed`, `agent_not_specified`. Transport itself gets one happy-path test; SDK is trusted for the rest.
+3. **MCP.** Each tool: valid call, `bad_input`, `unsupported_combination`, `already_installed`, `agent_not_specified`. Transport itself gets one happy-path test; SDK is trusted for the rest. `search_artifacts` additionally asserts favorites-first ordering and `isFavorite` on each result.
 
-4. **Frontend.** Vitest + React Testing Library for components with logic: status-pill rendering for every install status, filter-chip behavior, install-modal defaults (favorite-agent pre-fill, target pre-fill), notification-dot computation. Purely structural components skipped.
+4. **Frontend.** Vitest + React Testing Library for components with logic: status-pill rendering for every install status, filter-chip behavior, install-modal defaults (favorite-agent pre-fill, target pre-fill), notification-dot computation, favorite-star toggle (filled/outline state, click calls the API and re-sorts) on Browse, Skills-repo detail, and Artifact detail. Purely structural components skipped.
 
 5. **E2E smoke (optional in slice 1).** Playwright booting BE + browser, walking through register-fixture-source → register-tmp-working-repo → install one artifact → verify file landed + exclude block. Catches wiring regressions. Optional in slice 1; required by slice 2.
 
@@ -409,7 +465,7 @@ Tests focus on what's hardest to get right: filesystem behavior of installs, dri
 
 ---
 
-## 9. Delivery slicing
+## 10. Delivery slicing
 
 Walking-skeleton approach (chosen during brainstorming). Each slice independently shippable.
 
@@ -420,7 +476,7 @@ Walking-skeleton approach (chosen during brainstorming). Each slice independentl
 
 ---
 
-## 10. Open items deferred past MVP
+## 11. Open items deferred past MVP
 
 These are explicitly out of scope for the MVP build but the design accommodates them without re-architecture:
 
