@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, Artifact, SkillsRepo } from "../api.ts";
+import { FavoriteStar } from "../components/FavoriteStar.tsx";
 
 export function SkillsRepoDetail() {
   const { id = "" } = useParams();
@@ -12,6 +13,18 @@ export function SkillsRepoDetail() {
     api.getSkillsRepo(id).then(setRepo).catch((e: Error) => setError(e.message));
     api.listArtifacts({ sourceRepoId: id }).then(setArtifacts).catch(() => {});
   }, [id]);
+
+  const handleToggleFavorite = async (a: Artifact) => {
+    const next = !a.isFavorite;
+    setArtifacts((prev) => prev.map((x) => (x.artifactKey === a.artifactKey ? { ...x, isFavorite: next } : x)));
+    try {
+      await api.setFavorite(a.artifactKey, next);
+      setArtifacts(await api.listArtifacts({ sourceRepoId: id }));
+    } catch (e) {
+      setArtifacts((prev) => prev.map((x) => (x.artifactKey === a.artifactKey ? { ...x, isFavorite: !next } : x)));
+      alert((e as Error).message);
+    }
+  };
 
   if (error) return <p style={{ color: "red" }}>Error: {error}</p>;
   if (!repo) return <p>Loading…</p>;
@@ -37,10 +50,13 @@ export function SkillsRepoDetail() {
       </div>
       <h3>Discovered artifacts</h3>
       <table className="table">
-        <thead><tr><th>Name</th><th>Type</th><th>Description</th><th>Path</th></tr></thead>
+        <thead><tr><th></th><th>Name</th><th>Type</th><th>Description</th><th>Path</th></tr></thead>
         <tbody>
           {artifacts.map((a) => (
             <tr key={a.artifactKey}>
+              <td>
+                <FavoriteStar favorited={a.isFavorite} onToggle={() => handleToggleFavorite(a)} />
+              </td>
               <td>
                 <Link
                   to={`/artifacts?artifactKey=${encodeURIComponent(a.artifactKey)}`}
