@@ -8,7 +8,7 @@ export interface UninstallArgs {
   /** Only needs installedFiles + target; accepts both persisted Install records and engine drafts (Omit<Install,"id">). */
   install: Pick<Install, "installedFiles" | "target">;
   workingRepo?: WorkingRepo; // required if install.target.type === "working-repo"
-  remainingInstallsInTarget: Array<Pick<Install, "installedFiles">>;
+  remainingInstallsInTarget: Array<Pick<Install, "installedFiles" | "artifactType">>;
 }
 
 export async function uninstallArtifact(args: UninstallArgs): Promise<void> {

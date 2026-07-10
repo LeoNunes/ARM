@@ -13,7 +13,7 @@ export async function applyUpdate(args: {
   workingRepo: WorkingRepo;
   newSha: string;
   agent: AgentAdapter;
-  otherInstallsInTarget: Array<Pick<Install, "installedFiles">>;
+  otherInstallsInTarget: Array<Pick<Install, "installedFiles" | "artifactType">>;
 }): Promise<Pick<Install, "installedCommitSha" | "installedFiles">> {
   const { install, skillsRepo, workingRepo, newSha, agent, otherInstallsInTarget } = args;
 
@@ -47,7 +47,10 @@ export async function applyUpdate(args: {
     // List and write new files
     const newSourceFiles = await listFilesAtSha(skillsRepo.localClonePath, newSha, rootRelativePath);
     for (const sourcePath of newSourceFiles) {
-      const relativeToArtifact = sourcePath.slice(rootRelativePath.length + 1);
+      const relativeToArtifact =
+        sourcePath === rootRelativePath
+          ? path.basename(sourcePath)
+          : sourcePath.slice(rootRelativePath.length + 1);
       const mapped = agent.mapFileName(relativeToArtifact, install.artifactType);
       const targetAbs = path.join(targetRoot, mapped);
       const targetRel = path.relative(workingRepo.path, targetAbs).replace(/\\/g, "/");
@@ -60,7 +63,7 @@ export async function applyUpdate(args: {
 
     const patterns = computeExcludePatterns([
       ...otherInstallsInTarget,
-      { installedFiles: newInstalledFiles },
+      { installedFiles: newInstalledFiles, artifactType: install.artifactType },
     ]);
     const excludePath = path.join(workingRepo.path, ".git", "info", "exclude");
     await writeExcludeBlock(excludePath, patterns);
