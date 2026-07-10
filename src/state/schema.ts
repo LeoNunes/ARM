@@ -1,5 +1,5 @@
 export type AgentId = "claude-code" | "cursor";
-export type ArtifactTypeId = "skills"; // expanded in later slices
+export type ArtifactTypeId = "skills" | "rules";
 
 export type ActivityCategory =
   | "auto-update"
