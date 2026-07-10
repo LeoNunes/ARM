@@ -56,7 +56,7 @@ export function createMcpServer(deps: ServerDeps): McpServer {
     "Search artifacts across registered sources; optional q, type, sourceRepoId filters",
     {
       q: z.string().optional().describe("Case-insensitive search in name and description"),
-      type: z.string().optional().describe("Filter by artifact type (e.g. skills)"),
+      type: z.string().optional().describe("Filter by artifact type: skills or rules"),
       sourceRepoId: z.string().optional().describe("Filter by source repository id"),
     },
     async ({ q, type, sourceRepoId }) => {
@@ -140,7 +140,7 @@ export function createMcpServer(deps: ServerDeps): McpServer {
     {
       workingRepoId: z.string().optional(),
       agent: z.string().optional(),
-      type: z.string().optional(),
+      type: z.string().optional().describe("Filter by artifact type: skills or rules"),
     },
     async ({ workingRepoId, agent, type }) => {
       const allInstalls = await deps.installs.list();
