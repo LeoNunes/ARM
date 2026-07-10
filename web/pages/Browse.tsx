@@ -8,20 +8,21 @@ import { useAutoRefresh } from "../hooks/useAutoRefresh.ts";
 
 export function Browse() {
   const [q, setQ] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [installing, setInstalling] = useState<Artifact | null>(null);
 
   useEffect(() => {
     const ac = new AbortController();
-    api.listArtifacts({ q: q || undefined }, ac.signal)
+    api.listArtifacts({ q: q || undefined, type: typeFilter || undefined }, ac.signal)
       .then(setArtifacts)
       .catch(() => {});
     return () => ac.abort();
-  }, [q]);
+  }, [q, typeFilter]);
 
   useAutoRefresh(() => {
     const ac = new AbortController();
-    api.listArtifacts({ q: q || undefined }, ac.signal)
+    api.listArtifacts({ q: q || undefined, type: typeFilter || undefined }, ac.signal)
       .then(setArtifacts)
       .catch(() => {});
   });
@@ -31,7 +32,7 @@ export function Browse() {
     setArtifacts((prev) => prev.map((x) => (x.artifactKey === a.artifactKey ? { ...x, isFavorite: next } : x)));
     try {
       await api.setFavorite(a.artifactKey, next);
-      setArtifacts(await api.listArtifacts({ q: q || undefined }));
+      setArtifacts(await api.listArtifacts({ q: q || undefined, type: typeFilter || undefined }));
     } catch (e) {
       setArtifacts((prev) => prev.map((x) => (x.artifactKey === a.artifactKey ? { ...x, isFavorite: !next } : x)));
       alert((e as Error).message);
@@ -41,9 +42,16 @@ export function Browse() {
   return (
     <>
       <h2 style={{ marginTop: 0 }}>Browse</h2>
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" style={{ width: 360, marginBottom: 14 }} />
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" style={{ width: 360 }} />
+        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} aria-label="Type">
+          <option value="">All types</option>
+          <option value="skills">Skills</option>
+          <option value="rules">Rules</option>
+        </select>
+      </div>
       <table className="table">
-        <thead><tr><th></th><th>Name</th><th>Source</th><th>Description</th><th></th></tr></thead>
+        <thead><tr><th></th><th>Name</th><th>Type</th><th>Source</th><th>Description</th><th></th></tr></thead>
         <tbody>
           {artifacts.map((a) => (
             <tr key={a.artifactKey}>
@@ -57,6 +65,14 @@ export function Browse() {
                 >
                   {a.name}
                 </Link>
+              </td>
+              <td>
+                <span style={{
+                  fontSize: 11, padding: "2px 8px", borderRadius: 10,
+                  background: "rgba(255,255,255,0.08)", color: "var(--muted)",
+                }}>
+                  {a.type === "skills" ? "skill" : "rule"}
+                </span>
               </td>
               <td style={{ color: "var(--muted)" }}>
                 <Link

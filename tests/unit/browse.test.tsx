@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { MemoryRouter } from "react-router-dom";
 import { Browse } from "../../web/pages/Browse.tsx";
@@ -16,6 +16,11 @@ const mockArtifacts = [
     artifactKey: "src1:skills/alpha", sourceRepoId: "src1", sourceName: "acme-skills", type: "skills" as const,
     name: "alpha", description: "Alpha skill.", rootRelativePath: "skills/alpha",
     files: [], lastTouchedSha: "sha2", isFavorite: true,
+  },
+  {
+    artifactKey: "src1:rules/style.md", sourceRepoId: "src1", sourceName: "acme-skills", type: "rules" as const,
+    name: "style", description: "Style rule.", rootRelativePath: "rules/style.md",
+    files: ["rules/style.md"], lastTouchedSha: "sha3", isFavorite: false,
   },
 ];
 
@@ -35,7 +40,7 @@ describe("Browse — favorite star", () => {
     renderBrowse();
     await screen.findByText("alpha");
     expect(screen.getByRole("button", { name: "Unfavorite" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Favorite" })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Favorite" })).toHaveLength(2);
   });
 
   it("calls api.setFavorite with the toggled value when a star is clicked", async () => {
@@ -52,7 +57,29 @@ describe("Browse — source column", () => {
     renderBrowse();
     await screen.findByText("alpha");
     const links = screen.getAllByRole("link", { name: "acme-skills" });
-    expect(links).toHaveLength(2);
+    expect(links).toHaveLength(3);
     expect(links[0]).toHaveAttribute("href", "/skills-repos/src1");
+  });
+});
+
+describe("Browse — artifact type", () => {
+  it("renders a type badge per row", async () => {
+    renderBrowse();
+    await screen.findByText("alpha");
+    expect(screen.getAllByText("skill").length).toBe(2);
+    expect(screen.getAllByText("rule").length).toBe(1);
+  });
+
+  it("passes the selected type to api.listArtifacts", async () => {
+    const { api } = await import("../../web/api.ts");
+    renderBrowse();
+    await screen.findByText("alpha");
+    fireEvent.change(screen.getByLabelText("Type"), { target: { value: "rules" } });
+    await waitFor(() => {
+      expect(api.listArtifacts).toHaveBeenLastCalledWith(
+        { q: undefined, type: "rules" },
+        expect.anything(),
+      );
+    });
   });
 });
