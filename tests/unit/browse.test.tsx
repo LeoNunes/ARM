@@ -8,12 +8,12 @@ afterEach(cleanup);
 
 const mockArtifacts = [
   {
-    artifactKey: "src1:skills/bravo", sourceRepoId: "src1", type: "skills" as const,
+    artifactKey: "src1:skills/bravo", sourceRepoId: "src1", sourceName: "acme-skills", type: "skills" as const,
     name: "bravo", description: "Bravo skill.", rootRelativePath: "skills/bravo",
     files: [], lastTouchedSha: "sha1", isFavorite: false,
   },
   {
-    artifactKey: "src1:skills/alpha", sourceRepoId: "src1", type: "skills" as const,
+    artifactKey: "src1:skills/alpha", sourceRepoId: "src1", sourceName: "acme-skills", type: "skills" as const,
     name: "alpha", description: "Alpha skill.", rootRelativePath: "skills/alpha",
     files: [], lastTouchedSha: "sha2", isFavorite: true,
   },
@@ -44,5 +44,15 @@ describe("Browse — favorite star", () => {
     await screen.findByText("alpha");
     fireEvent.click(screen.getByRole("button", { name: "Unfavorite" }));
     expect(api.setFavorite).toHaveBeenCalledWith("src1:skills/alpha", false);
+  });
+});
+
+describe("Browse — source column", () => {
+  it("renders the source repo name as a link to the repo detail page", async () => {
+    renderBrowse();
+    await screen.findByText("alpha");
+    const links = screen.getAllByRole("link", { name: "acme-skills" });
+    expect(links).toHaveLength(2);
+    expect(links[0]).toHaveAttribute("href", "/skills-repos/src1");
   });
 });

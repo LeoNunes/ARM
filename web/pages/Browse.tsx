@@ -58,7 +58,11 @@ export function Browse() {
                   {a.name}
                 </Link>
               </td>
-              <td style={{ color: "var(--muted)" }}>{a.sourceRepoId.slice(0, 8)}</td>
+              <td style={{ color: "var(--muted)" }}>
+                <Link to={`/skills-repos/${a.sourceRepoId}`} style={{ color: "inherit" }}>
+                  {a.sourceName}
+                </Link>
+              </td>
               <td style={{ color: "var(--muted)" }}>
                 {a.description ? (
                   <div className="description-clamp" title={a.description} style={{ maxWidth: 320 }}>

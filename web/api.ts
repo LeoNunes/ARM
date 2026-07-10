@@ -29,7 +29,7 @@ export interface ActivityLogEntry {
 }
 
 export interface Artifact {
-  artifactKey: string; sourceRepoId: string; type: "skills";
+  artifactKey: string; sourceRepoId: string; sourceName: string; type: "skills";
   name: string; description: string | null;
   rootRelativePath: string; files: string[]; lastTouchedSha: string | null;
   isFavorite: boolean;
