@@ -59,7 +59,20 @@ export function Browse() {
                 </Link>
               </td>
               <td style={{ color: "var(--muted)" }}>
-                <Link to={`/skills-repos/${a.sourceRepoId}`} style={{ color: "inherit" }}>
+                <Link
+                  to={`/skills-repos/${a.sourceRepoId}`}
+                  title={a.sourceName}
+                  style={{
+                    color: "inherit",
+                    textDecoration: "none",
+                    display: "inline-block",
+                    maxWidth: 200,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    verticalAlign: "bottom",
+                  }}
+                >
                   {a.sourceName}
                 </Link>
               </td>
