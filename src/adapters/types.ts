@@ -18,7 +18,7 @@ export interface AgentAdapter {
   displayName: string;
   supports(type: ArtifactTypeId, scope: Scope): boolean;
   targetRoot(args: { scope: Scope; workingRepoPath?: string; type: ArtifactTypeId; name: string }): string;
-  mapFileName(fileName: string): string;
+  mapFileName(fileName: string, type: ArtifactTypeId): string;
 }
 
 export interface ArtifactTypeAdapter {

@@ -25,8 +25,29 @@ describe("cursorAdapter", () => {
   });
 
   it("mapFileName rewrites CLAUDE.md to AGENTS.md, otherwise identity", () => {
-    expect(cursorAdapter.mapFileName("CLAUDE.md")).toBe("AGENTS.md");
-    expect(cursorAdapter.mapFileName("SKILL.md")).toBe("SKILL.md");
-    expect(cursorAdapter.mapFileName("examples/CLAUDE.md")).toBe("examples/AGENTS.md");
+    expect(cursorAdapter.mapFileName("CLAUDE.md", "skills")).toBe("AGENTS.md");
+    expect(cursorAdapter.mapFileName("SKILL.md", "skills")).toBe("SKILL.md");
+    expect(cursorAdapter.mapFileName("examples/CLAUDE.md", "skills")).toBe("examples/AGENTS.md");
+  });
+
+  it("supports rules only at working-repo scope", () => {
+    expect(cursorAdapter.supports("rules", "working-repo")).toBe(true);
+    expect(cursorAdapter.supports("rules", "global")).toBe(false);
+  });
+
+  it("rules targetRoot is the shared .cursor/rules directory", () => {
+    const root = cursorAdapter.targetRoot({
+      scope: "working-repo",
+      workingRepoPath: "/r/a",
+      type: "rules",
+      name: "style",
+    });
+    expect(root.replace(/\\/g, "/")).toBe("/r/a/.cursor/rules");
+  });
+
+  it("mapFileName renames rule .md to .mdc, leaves .mdc alone, and leaves skills extensions alone", () => {
+    expect(cursorAdapter.mapFileName("style.md", "rules")).toBe("style.mdc");
+    expect(cursorAdapter.mapFileName("security.mdc", "rules")).toBe("security.mdc");
+    expect(cursorAdapter.mapFileName("SKILL.md", "skills")).toBe("SKILL.md");
   });
 });

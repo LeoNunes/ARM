@@ -38,7 +38,7 @@ export async function installArtifact(args: InstallArgs): Promise<Omit<Install, 
   try {
     for (const sourcePath of artifact.files) {
       const relativeToArtifact = sourcePath.slice(artifact.rootRelativePath.length + 1);
-      const mapped = agent.mapFileName(relativeToArtifact);
+      const mapped = agent.mapFileName(relativeToArtifact, artifact.type);
       const targetAbs = path.join(targetRoot, mapped);
       const targetRel = workingRepo
         ? path.relative(workingRepo.path, targetAbs).replace(/\\/g, "/")
