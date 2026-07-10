@@ -3,7 +3,7 @@ import path from "node:path";
 import type { AgentAdapter, Scope } from '../types';
 import type { ArtifactTypeId } from '../../state/schema';
 
-const SUPPORTED: Record<ArtifactTypeId, Scope[]> = {
+const SUPPORTED: Partial<Record<ArtifactTypeId, Scope[]>> = {
   skills: ["working-repo", "global"],
 };
 
