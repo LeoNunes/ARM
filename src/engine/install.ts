@@ -15,7 +15,7 @@ export interface InstallArgs {
   sha: string;
   autoUpdate: boolean;
   /** All installs already in the same working repo (for exclude-block recompute). Empty for global. Only `installedFiles` is read. */
-  existingInstallsInTarget: Array<Pick<Install, "installedFiles">>;
+  existingInstallsInTarget: Array<Pick<Install, "installedFiles" | "artifactType">>;
 }
 
 /** Returns a draft install record (without `id`). The caller persists it via `InstallsStore.add`, which assigns the id. */
@@ -37,7 +37,10 @@ export async function installArtifact(args: InstallArgs): Promise<Omit<Install, 
   const writtenAbsPaths: string[] = [];
   try {
     for (const sourcePath of artifact.files) {
-      const relativeToArtifact = sourcePath.slice(artifact.rootRelativePath.length + 1);
+      const relativeToArtifact =
+        sourcePath === artifact.rootRelativePath
+          ? path.basename(sourcePath)
+          : sourcePath.slice(artifact.rootRelativePath.length + 1);
       const mapped = agent.mapFileName(relativeToArtifact, artifact.type);
       const targetAbs = path.join(targetRoot, mapped);
       const targetRel = workingRepo
@@ -51,7 +54,7 @@ export async function installArtifact(args: InstallArgs): Promise<Omit<Install, 
     }
     if (target.type === "working-repo" && workingRepo) {
       const patterns = computeExcludePatterns(
-        [...existingInstallsInTarget, { installedFiles }],
+        [...existingInstallsInTarget, { installedFiles, artifactType: artifact.type }],
       );
       const excludePath = path.join(workingRepo.path, ".git", "info", "exclude");
       await writeExcludeBlock(excludePath, patterns);
@@ -77,13 +80,20 @@ export async function installArtifact(args: InstallArgs): Promise<Omit<Install, 
   return record;
 }
 
-export function computeExcludePatterns(installs: Array<Pick<Install, "installedFiles">>): string[] {
+export function computeExcludePatterns(
+  installs: Array<Pick<Install, "installedFiles" | "artifactType">>,
+): string[] {
   const set = new Set<string>();
   for (const inst of installs) {
     for (const f of inst.installedFiles) {
-      // Add the parent directory with trailing slash (the skill directory level)
-      const dir = f.targetPath.split("/").slice(0, -1).join("/");
-      if (dir) set.add(dir + "/");
+      if (inst.artifactType === "rules") {
+        // Single-file artifact in a shared directory: exclude only this file so
+        // the user's own rules in the same directory stay visible to git.
+        set.add(f.targetPath);
+      } else {
+        const dir = f.targetPath.split("/").slice(0, -1).join("/");
+        if (dir) set.add(dir + "/");
+      }
     }
   }
   return [...set].sort();
