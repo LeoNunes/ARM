@@ -130,6 +130,26 @@ describe("API /artifacts", () => {
     const names = list.json().map((a: { name: string }) => a.name).sort();
     expect(names).toEqual(["bar", "foo"]);
   });
+
+  it("includes sourceName resolved from the registered repo's name", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    const fx = await buildFixtureRepo([
+      { message: "init", files: { "ai/skills/foo/SKILL.md": "# Foo\n" } },
+    ]);
+    await app.inject({
+      method: "POST", url: "/api/skills-repos",
+      payload: { name: "my-skills-repo", gitUrl: fx.fileUrl, branch: "main", artifactPaths: { skills: ["ai/skills"] } },
+    });
+    const list = await app.inject({ method: "GET", url: "/api/artifacts" });
+    const [foo] = list.json();
+    expect(foo.sourceName).toBe("my-skills-repo");
+
+    const detail = await app.inject({
+      method: "GET", url: `/api/artifacts/${encodeURIComponent(foo.artifactKey)}`,
+    });
+    expect(detail.json().sourceName).toBe("my-skills-repo");
+  });
 });
 
 describe("API /installs", () => {

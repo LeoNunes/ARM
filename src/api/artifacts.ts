@@ -8,6 +8,11 @@ import { GitClient } from '../git/client';
 import { AppError } from '../util/errors';
 import type { DiscoveredArtifact } from '../adapters/types';
 
+async function repoNameMap(deps: ServerDeps): Promise<Map<string, string>> {
+  const repos = await deps.skillsRepos.list();
+  return new Map(repos.map((r) => [r.id, r.name]));
+}
+
 export async function registerArtifactsRoutes(app: FastifyInstance, deps: ServerDeps): Promise<void> {
   app.get<{ Querystring: { q?: string; type?: string; sourceRepoId?: string } }>(
     "/api/artifacts",
@@ -27,7 +32,12 @@ export async function registerArtifactsRoutes(app: FastifyInstance, deps: Server
       });
       const favorites = await deps.favorites.listFavorites();
       const sorted = sortByFavorite(filtered, favorites);
-      return sorted.map((a) => ({ ...a, isFavorite: favorites.has(a.artifactKey) }));
+      const repoNames = await repoNameMap(deps);
+      return sorted.map((a) => ({
+        ...a,
+        isFavorite: favorites.has(a.artifactKey),
+        sourceName: repoNames.get(a.sourceRepoId)!,
+      }));
     },
   );
 
@@ -35,7 +45,8 @@ export async function registerArtifactsRoutes(app: FastifyInstance, deps: Server
     const a = (await discoverAll(deps)).find((x) => x.artifactKey === decodeURIComponent(req.params.artifactKey));
     if (!a) return reply.code(404).send({ code: "artifact_not_found" });
     const isFavorite = await deps.favorites.isFavorite(a.artifactKey);
-    return { ...a, isFavorite };
+    const repoNames = await repoNameMap(deps);
+    return { ...a, isFavorite, sourceName: repoNames.get(a.sourceRepoId)! };
   });
 
   app.get<{ Params: { artifactKey: string; "*": string }; Querystring: { sha?: string } }>(
