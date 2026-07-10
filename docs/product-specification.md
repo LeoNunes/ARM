@@ -20,6 +20,8 @@ A single developer running on their own machine. Out of scope for MVP: multi-use
 ## 3. Concepts and terminology
 
 - **Artifact.** A discrete, installable unit. MVP supports two artifact types: **skills** and **rules**. The system is designed so additional artifact types (agent files such as CLAUDE.md / AGENTS.md, MCP server configurations, allowlist command lists, etc.) can be added later without redesigning the core.
+  - **Skill.** A directory of files. Each immediate subdirectory of a configured skills path in a source repo is one skill; its name is the directory name, and its description comes from the `description:` frontmatter of its `SKILL.md`, when present.
+  - **Rule.** A single markdown file (`.md` or `.mdc`) directly under a configured rules path in a source repo (subdirectories are not scanned; `README.md` files are skipped). Its name is the filename without extension, and its description comes from the file's own `description:` frontmatter, when present.
 - **Agent.** A target AI tool that consumes artifacts. MVP supports two agents: **Cursor** and **Claude Code**. The system is designed for additional agents to be added later.
 - **Skills repository (source).** A git repository containing one or more artifacts available for installation. The user registers these. Each registration records the branch to track (default `main`) and the path(s) inside the repo where artifacts live.
 - **Working repository (target).** A git repository the user works in, where they want artifacts installed.
@@ -56,10 +58,20 @@ A single developer running on their own machine. Out of scope for MVP: multi-use
   - The **version** to install (default: latest).
   - Whether to enable **auto-update** for this install.
 - Install an artifact at the **user-global location** for an agent (rather than into a specific working repo). The agent selector here is also pre-filled from the favorite-agent setting.
-- Installation copies the artifact's files into the target's agent-specific location (for example, the Claude Code skills directory inside the working repo, or the Cursor rules directory).
-- **Filename mapping** is applied where needed. MVP includes the case where files named `CLAUDE.md` become `AGENTS.md` when the target is Cursor.
+- Installation copies the artifact's files into the target's agent-specific location. Skills install into a per-skill directory; rules install as a single file into the agent's shared rules directory:
+
+  | | Working repo | Global |
+  |---|---|---|
+  | Claude Code — skills | `.claude/skills/<name>/` | `~/.claude/skills/<name>/` |
+  | Claude Code — rules | `.claude/rules/<file>` | `~/.claude/rules/<file>` |
+  | Cursor — skills | `.cursor/skills/<name>/` | `~/.cursor/skills/<name>/` |
+  | Cursor — rules | `.cursor/rules/<file>` | **Not supported** — Cursor's user-global rules live in its app settings, not in files, so the UI and MCP do not offer this combination |
+
+- **Filename mapping** is applied where needed. MVP includes:
+  - Files named `CLAUDE.md` become `AGENTS.md` when the target is Cursor.
+  - Rule file extensions match the target agent: installing a rule to Cursor renames `*.md` to `*.mdc`; installing to Claude Code renames `*.mdc` to `*.md`.
 - For MVP, file content is copied **as-is** otherwise (no frontmatter or structural translation between agent formats).
-- After installation, the system arranges for the installed files to be ignored by git in the working repo **without modifying any tracked file in that repo** (no edits to the repo's `.gitignore`). Developers using the working repo see no AI Resources Manager output in `git status`.
+- After installation, the system arranges for the installed files to be ignored by git in the working repo **without modifying any tracked file in that repo** (no edits to the repo's `.gitignore`). Developers using the working repo see no AI Resources Manager output in `git status`. For skills the exclusion covers the installed skill's directory; for rules it covers only the exact installed file, so the user's own rules in the same directory remain visible to git.
 - Uninstall removes the installed files and the install record.
 - Install can also be initiated from the **artifact detail page**.
 
@@ -188,6 +200,7 @@ The activity log is surfaced in two places:
 ## 7. Out of scope for MVP
 
 - Cross-agent format translation beyond filename mapping (e.g., rewriting frontmatter, rule structure, or trigger metadata between Cursor and Claude Code formats). The architecture leaves room for translators to be added later.
+- The legacy single-file `.cursorrules` format (superseded by `.cursor/rules/`).
 - Artifact types other than skills and rules (agent files like CLAUDE.md / AGENTS.md, MCP server configurations as managed artifacts, allowlist command lists).
 - Multi-user, remote synchronization, team-level sharing.
 - Background updates or notifications while the application is not running.
