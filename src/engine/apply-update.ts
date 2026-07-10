@@ -48,7 +48,7 @@ export async function applyUpdate(args: {
     const newSourceFiles = await listFilesAtSha(skillsRepo.localClonePath, newSha, rootRelativePath);
     for (const sourcePath of newSourceFiles) {
       const relativeToArtifact = sourcePath.slice(rootRelativePath.length + 1);
-      const mapped = agent.mapFileName(relativeToArtifact);
+      const mapped = agent.mapFileName(relativeToArtifact, install.artifactType);
       const targetAbs = path.join(targetRoot, mapped);
       const targetRel = path.relative(workingRepo.path, targetAbs).replace(/\\/g, "/");
       const content = await readFileAtSha(skillsRepo.localClonePath, newSha, sourcePath);
