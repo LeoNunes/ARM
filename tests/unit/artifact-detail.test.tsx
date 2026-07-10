@@ -9,6 +9,7 @@ afterEach(cleanup);
 const mockArtifact = {
   artifactKey: "src1:skills/foo",
   sourceRepoId: "src1",
+  sourceName: "acme-skills",
   type: "skills" as const,
   name: "foo",
   description: "Does foo things.",
@@ -86,6 +87,12 @@ describe("ArtifactDetail — Header", () => {
   it("renders Install button", async () => {
     renderDetail();
     expect(await screen.findByRole("button", { name: "Install" })).toBeTruthy();
+  });
+
+  it("renders source repo name as a link to the repo detail page", async () => {
+    renderDetail();
+    const link = await screen.findByRole("link", { name: "acme-skills" });
+    expect(link).toHaveAttribute("href", "/skills-repos/src1");
   });
 });
 

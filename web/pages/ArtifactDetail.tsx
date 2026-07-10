@@ -107,7 +107,7 @@ export function ArtifactDetail() {
         </p>
       )}
       <p style={{ color: "var(--muted)", fontSize: 12, marginBottom: 20 }}>
-        Source: {artifact.sourceRepoId.slice(0, 8)}
+        Source: <Link to={`/skills-repos/${artifact.sourceRepoId}`} style={{ color: "inherit" }}>{artifact.sourceName}</Link>
       </p>
 
       {/* File Viewer */}
