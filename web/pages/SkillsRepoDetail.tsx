@@ -37,6 +37,7 @@ export function SkillsRepoDetail() {
         <div><strong>Git URL:</strong> {repo.gitUrl}</div>
         <div><strong>Branch:</strong> {repo.branch}</div>
         <div><strong>Skills paths:</strong> {(repo.artifactPaths.skills ?? []).join(", ") || "(none)"}</div>
+        <div><strong>Rules paths:</strong> {(repo.artifactPaths.rules ?? []).join(", ") || "(none)"}</div>
         <div style={{ color: "var(--muted)", marginTop: 6 }}>Last fetched: {repo.lastFetchedAt ?? "—"}</div>
         <button className="btn secondary" style={{ marginTop: 8 }} onClick={async () => {
           try {

@@ -63,3 +63,12 @@ describe("SkillsRepoDetail — favorite star", () => {
     expect(api.setFavorite).toHaveBeenCalledWith("src1:skills/bravo", true);
   });
 });
+
+describe("SkillsRepoDetail — artifact paths", () => {
+  it("shows skills and rules paths lines", async () => {
+    renderDetail();
+    await screen.findByText("alpha");
+    expect(screen.getByText("Skills paths:")).toBeTruthy();
+    expect(screen.getByText("Rules paths:")).toBeTruthy();
+  });
+});

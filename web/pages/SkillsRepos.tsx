@@ -17,7 +17,7 @@ export function SkillsRepos() {
         <button className="btn" style={{ marginLeft: "auto" }} onClick={() => setOpen(true)}>+ Register</button>
       </div>
       <table className="table">
-        <thead><tr><th>Name</th><th>Git URL</th><th>Branch</th><th>Skills paths</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Git URL</th><th>Branch</th><th>Skills paths</th><th>Rules paths</th><th></th></tr></thead>
         <tbody>
           {repos.map((r) => (
             <tr key={r.id}>
@@ -25,6 +25,7 @@ export function SkillsRepos() {
               <td style={{ color: "var(--muted)" }}>{r.gitUrl}</td>
               <td>{r.branch}</td>
               <td>{(r.artifactPaths.skills ?? []).join(", ")}</td>
+              <td>{(r.artifactPaths.rules ?? []).join(", ")}</td>
               <td><button className="btn secondary" onClick={async () => { await api.deleteSkillsRepo(r.id); reload(); }}>Remove</button></td>
             </tr>
           ))}
