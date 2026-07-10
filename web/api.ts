@@ -1,6 +1,6 @@
 export interface SkillsRepo {
   id: string; name: string; gitUrl: string; branch: string;
-  artifactPaths: { skills?: string[] };
+  artifactPaths: { skills?: string[]; rules?: string[] };
   presetId: string | null; localClonePath: string; lastFetchedAt: string | null;
 }
 export interface WorkingRepo { id: string; name: string; path: string; addedAt: string; }
@@ -29,7 +29,7 @@ export interface ActivityLogEntry {
 }
 
 export interface Artifact {
-  artifactKey: string; sourceRepoId: string; sourceName: string; type: "skills";
+  artifactKey: string; sourceRepoId: string; sourceName: string; type: "skills" | "rules";
   name: string; description: string | null;
   rootRelativePath: string; files: string[]; lastTouchedSha: string | null;
   isFavorite: boolean;
@@ -139,7 +139,7 @@ export const api = {
 
   listSkillsRepos: () => req<SkillsRepo[]>("GET", "/api/skills-repos"),
   getSkillsRepo: (id: string) => req<SkillsRepo>("GET", `/api/skills-repos/${id}`),
-  registerSkillsRepo: (body: { name: string; gitUrl: string; branch?: string; artifactPaths?: { skills?: string[] } }) =>
+  registerSkillsRepo: (body: { name: string; gitUrl: string; branch?: string; artifactPaths?: { skills?: string[]; rules?: string[] } }) =>
     req<SkillsRepo>("POST", "/api/skills-repos", body),
   deleteSkillsRepo: (id: string) => req<void>("DELETE", `/api/skills-repos/${id}`),
   refreshSkillsRepo: (id: string) => req<SkillsRepo>("POST", `/api/skills-repos/${id}/refresh`),

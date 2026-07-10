@@ -6,6 +6,7 @@ export function RegisterSkillsRepoModal({ onClose, onDone }: { onClose: () => vo
   const [gitUrl, setGitUrl] = useState("");
   const [branch, setBranch] = useState("main");
   const [skillsPaths, setSkillsPaths] = useState("ai/skills");
+  const [rulesPaths, setRulesPaths] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -15,7 +16,10 @@ export function RegisterSkillsRepoModal({ onClose, onDone }: { onClose: () => vo
     try {
       await api.registerSkillsRepo({
         name, gitUrl, branch,
-        artifactPaths: { skills: skillsPaths.split(",").map((s) => s.trim()).filter(Boolean) },
+        artifactPaths: {
+          skills: skillsPaths.split(",").map((s) => s.trim()).filter(Boolean),
+          rules: rulesPaths.split(",").map((s) => s.trim()).filter(Boolean),
+        },
       });
       onDone();
     } catch (e) {
@@ -44,6 +48,10 @@ export function RegisterSkillsRepoModal({ onClose, onDone }: { onClose: () => vo
         <div className="field">
           <label>Skills paths (comma-separated)</label>
           <input value={skillsPaths} onChange={(e) => setSkillsPaths(e.target.value)} style={{ width: "100%" }} />
+        </div>
+        <div className="field">
+          <label>Rules paths (comma-separated)</label>
+          <input value={rulesPaths} onChange={(e) => setRulesPaths(e.target.value)} style={{ width: "100%" }} placeholder="ai/rules" />
         </div>
         {error && <div style={{ color: "var(--danger)", fontSize: 12, marginBottom: 8 }}>{error}</div>}
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
