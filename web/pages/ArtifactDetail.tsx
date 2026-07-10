@@ -91,7 +91,7 @@ export function ArtifactDetail() {
           fontSize: 11, padding: "2px 8px", borderRadius: 10,
           background: "rgba(255,255,255,0.08)", color: "var(--muted)",
         }}>
-          {artifact.type === "skills" ? "skill" : artifact.type}
+          {artifact.type === "skills" ? "skill" : artifact.type === "rules" ? "rule" : artifact.type}
         </span>
         <button className="btn" style={{ marginLeft: "auto" }} onClick={() => setInstalling(true)}>
           Install

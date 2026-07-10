@@ -1,6 +1,6 @@
 // tests/unit/install-modal.test.tsx
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { InstallModal } from "../../web/components/InstallModal.tsx";
 import type { Artifact } from "../../web/api.ts";
@@ -24,5 +24,28 @@ describe("InstallModal", () => {
     render(<InstallModal artifact={artifact} onClose={() => {}} onDone={() => {}} />);
     const select = await waitFor(() => screen.getByLabelText("Agent") as HTMLSelectElement);
     expect(select.value).toBe("cursor");
+  });
+});
+
+const ruleArtifact: Artifact = {
+  artifactKey: "src1:ai/rules/style.md", sourceRepoId: "src1", type: "rules",
+  name: "style", description: null, rootRelativePath: "ai/rules/style.md",
+  files: ["ai/rules/style.md"], lastTouchedSha: "abc", isFavorite: false,
+};
+
+describe("InstallModal — rules", () => {
+  it("titles itself by artifact type", async () => {
+    render(<InstallModal artifact={ruleArtifact} onClose={() => {}} onDone={() => {}} />);
+    await waitFor(() => screen.getByText("Install rule"));
+  });
+
+  it("disables Cursor and falls back to Claude Code when scope is global", async () => {
+    render(<InstallModal artifact={ruleArtifact} onClose={() => {}} onDone={() => {}} />);
+    const select = await waitFor(() => screen.getByLabelText("Agent") as HTMLSelectElement);
+    expect(select.value).toBe("cursor"); // pre-filled from favoriteAgent
+    fireEvent.click(screen.getByText("Global"));
+    await waitFor(() => expect((screen.getByLabelText("Agent") as HTMLSelectElement).value).toBe("claude-code"));
+    const cursorOption = screen.getByRole("option", { name: /Cursor/ }) as HTMLOptionElement;
+    expect(cursorOption.disabled).toBe(true);
   });
 });

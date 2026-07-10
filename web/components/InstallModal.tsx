@@ -18,6 +18,12 @@ export function InstallModal({ artifact, onClose, onDone }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const cursorAllowed = !(artifact.type === "rules" && scope === "global");
+
+  useEffect(() => {
+    if (!cursorAllowed && agent === "cursor") setAgent("claude-code");
+  }, [cursorAllowed, agent]);
+
   useEffect(() => {
     Promise.all([api.getSettings(), api.listWorkingRepos()])
       .then(([s, wr]) => {
@@ -47,9 +53,9 @@ export function InstallModal({ artifact, onClose, onDone }: Props) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ marginTop: 0 }}>Install skill</h3>
+        <h3 style={{ marginTop: 0 }}>Install {artifact.type === "rules" ? "rule" : "skill"}</h3>
         <div className="field">
-          <label>Skill</label>
+          <label>{artifact.type === "rules" ? "Rule" : "Skill"}</label>
           <div>{artifact.name} <span style={{ color: "var(--muted)" }}>· {artifact.sourceRepoId.slice(0, 8)}</span></div>
         </div>
         <div className="field">
@@ -68,7 +74,9 @@ export function InstallModal({ artifact, onClose, onDone }: Props) {
           <label>Agent</label>
           <select value={agent} onChange={(e) => setAgent(e.target.value as "claude-code" | "cursor")} aria-label="Agent" style={{ width: "100%" }}>
             <option value="claude-code">Claude Code</option>
-            <option value="cursor">Cursor</option>
+            <option value="cursor" disabled={!cursorAllowed}>
+              Cursor{cursorAllowed ? "" : " (no global rules)"}
+            </option>
           </select>
         </div>
         <div className="field">
