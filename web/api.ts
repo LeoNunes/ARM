@@ -38,7 +38,7 @@ export interface Install {
   id: string; artifactKey: string; sourceRepoId: string;
   target: { type: "working-repo"; workingRepoId: string } | { type: "global" };
   agent: "claude-code" | "cursor";
-  artifactType: "skills";
+  artifactType: "skills" | "rules";
   installedCommitSha: string; autoUpdate: boolean;
   installedFiles: { sourcePath: string; targetPath: string }[];
   installedAt: string;
