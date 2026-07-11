@@ -201,6 +201,7 @@ The activity log is surfaced in two places:
 
 - Cross-agent format translation beyond filename mapping (e.g., rewriting frontmatter, rule structure, or trigger metadata between Cursor and Claude Code formats). The architecture leaves room for translators to be added later.
 - The legacy single-file `.cursorrules` format (superseded by `.cursor/rules/`).
+- Target-file conflict detection for rules. Rules from different sources (or a `.md`/`.mdc` pair from the same source) can map to the same filename in the shared rules directory, and installation will overwrite whatever is there — including a user's own hand-written rule of the same name. Installing avoids this only by artifact key; a pre-write conflict check is a candidate fast-follow.
 - Artifact types other than skills and rules (agent files like CLAUDE.md / AGENTS.md, MCP server configurations as managed artifacts, allowlist command lists).
 - Multi-user, remote synchronization, team-level sharing.
 - Background updates or notifications while the application is not running.
