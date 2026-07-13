@@ -35,6 +35,10 @@ function renderBrowse() {
   return render(<MemoryRouter><Browse /></MemoryRouter>);
 }
 
+function nameOrder(container: HTMLElement) {
+  return Array.from(container.querySelectorAll('a[href^="/artifacts?"]')).map((el) => el.textContent);
+}
+
 describe("Browse — favorite star", () => {
   it("renders a filled star for a favorited artifact and an outline star for a non-favorited one", async () => {
     renderBrowse();
@@ -107,5 +111,57 @@ describe("Browse — column widths", () => {
     const installHeader = headerRow.children[5] as HTMLElement;
     expect(typeHeader.style.whiteSpace).toBe("nowrap");
     expect(installHeader.style.whiteSpace).toBe("nowrap");
+  });
+});
+
+describe("Browse — sorting", () => {
+  it("defaults to the order returned by the API (unsorted)", async () => {
+    const { container } = renderBrowse();
+    await screen.findByText("alpha");
+    expect(nameOrder(container)).toEqual(["bravo", "alpha", "style"]);
+  });
+
+  it("sorts by Name ascending on first click and descending on second click", async () => {
+    const { container } = renderBrowse();
+    await screen.findByText("alpha");
+
+    fireEvent.click(screen.getByRole("button", { name: /^Name/ }));
+    expect(nameOrder(container)).toEqual(["alpha", "bravo", "style"]);
+    expect(screen.getByRole("button", { name: "Name ▲" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Name/ }));
+    expect(nameOrder(container)).toEqual(["style", "bravo", "alpha"]);
+    expect(screen.getByRole("button", { name: "Name ▼" })).toBeTruthy();
+  });
+
+  it("sorts by Type ascending, using the rendered label and a stable order within ties", async () => {
+    const { container } = renderBrowse();
+    await screen.findByText("alpha");
+    fireEvent.click(screen.getByRole("button", { name: /^Type/ }));
+    // "rule" < "skill"; the two skills (bravo, alpha) keep their original relative order.
+    expect(nameOrder(container)).toEqual(["style", "bravo", "alpha"]);
+  });
+
+  it("sorts by Source ascending using the source display name", async () => {
+    const { api } = await import("../../web/api.ts");
+    vi.mocked(api.listArtifacts).mockResolvedValueOnce([
+      { ...mockArtifacts[0], sourceName: "zeta-skills" },
+      { ...mockArtifacts[1], sourceName: "acme-skills" },
+      { ...mockArtifacts[2], sourceName: "middle-skills" },
+    ]);
+    const { container } = renderBrowse();
+    await screen.findByText("alpha");
+    fireEvent.click(screen.getByRole("button", { name: /^Source/ }));
+    expect(nameOrder(container)).toEqual(["alpha", "style", "bravo"]);
+  });
+
+  it("switching to a different sortable column resets direction to ascending", async () => {
+    const { container } = renderBrowse();
+    await screen.findByText("alpha");
+    fireEvent.click(screen.getByRole("button", { name: /^Name/ })); // asc
+    fireEvent.click(screen.getByRole("button", { name: /^Name/ })); // desc
+    fireEvent.click(screen.getByRole("button", { name: /^Type/ })); // switch column -> asc
+    expect(screen.getByRole("button", { name: "Type ▲" })).toBeTruthy();
+    expect(nameOrder(container)).toEqual(["style", "bravo", "alpha"]);
   });
 });

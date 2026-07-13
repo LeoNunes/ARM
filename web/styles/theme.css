@@ -35,3 +35,11 @@ input, select { background: var(--panel); color: var(--text); border: 1px solid 
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.th-sort {
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+}

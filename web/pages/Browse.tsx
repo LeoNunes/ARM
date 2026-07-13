@@ -1,5 +1,5 @@
 // web/pages/Browse.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, Artifact } from "../api.ts";
 import { InstallModal } from "../components/InstallModal.tsx";
@@ -11,6 +11,8 @@ export function Browse() {
   const [typeFilter, setTypeFilter] = useState("");
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [installing, setInstalling] = useState<Artifact | null>(null);
+  const [sortKey, setSortKey] = useState<"name" | "type" | "source" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
     const ac = new AbortController();
@@ -39,6 +41,29 @@ export function Browse() {
     }
   };
 
+  const handleSort = (key: "name" | "type" | "source") => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const sortArrow = (key: "name" | "type" | "source") =>
+    sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
+
+  const sortedArtifacts = useMemo(() => {
+    if (!sortKey) return artifacts;
+    const dir = sortDir === "asc" ? 1 : -1;
+    const valueOf = (a: Artifact) => {
+      if (sortKey === "name") return a.name;
+      if (sortKey === "type") return a.type === "skills" ? "skill" : "rule";
+      return a.sourceName;
+    };
+    return [...artifacts].sort((a, b) => valueOf(a).localeCompare(valueOf(b)) * dir);
+  }, [artifacts, sortKey, sortDir]);
+
   return (
     <>
       <h2 style={{ marginTop: 0 }}>Browse</h2>
@@ -62,15 +87,27 @@ export function Browse() {
         <thead>
           <tr>
             <th></th>
-            <th>Name</th>
-            <th style={{ whiteSpace: "nowrap" }}>Type</th>
-            <th>Source</th>
+            <th>
+              <button type="button" className="th-sort" onClick={() => handleSort("name")}>
+                Name{sortArrow("name")}
+              </button>
+            </th>
+            <th style={{ whiteSpace: "nowrap" }}>
+              <button type="button" className="th-sort" onClick={() => handleSort("type")}>
+                Type{sortArrow("type")}
+              </button>
+            </th>
+            <th>
+              <button type="button" className="th-sort" onClick={() => handleSort("source")}>
+                Source{sortArrow("source")}
+              </button>
+            </th>
             <th>Description</th>
             <th style={{ whiteSpace: "nowrap" }}></th>
           </tr>
         </thead>
         <tbody>
-          {artifacts.map((a) => (
+          {sortedArtifacts.map((a) => (
             <tr key={a.artifactKey}>
               <td>
                 <FavoriteStar favorited={a.isFavorite} onToggle={() => handleToggleFavorite(a)} />
