@@ -36,6 +36,30 @@ describe("skillsAdapter.discoverAt", () => {
     expect(beta.description).toBe("Does beta stuff, with punctuation.");
   });
 
+  it("reads multiline folded (>) descriptions from frontmatter", async () => {
+    const fx = await buildFixtureRepo([
+      {
+        message: "init",
+        files: {
+          "ai/skills/gamma/SKILL.md":
+            "---\nname: gamma\ndescription: >\n  This is a multiline description.\n  It can have multiple lines.\n  This is one line.\n  This is another.\n---\n\n# Gamma\n",
+        },
+      },
+    ]);
+    const dest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fx.fileUrl, dest, "main");
+    const out = await skillsAdapter.discoverAt({
+      sourceRepoId: "src1",
+      sourceRepoPath: dest,
+      configuredPath: "ai/skills",
+      ref: "main",
+    });
+    const gamma = out.find((a) => a.name === "gamma")!;
+    expect(gamma.description).toBe(
+      "This is a multiline description. It can have multiple lines. This is one line. This is another.",
+    );
+  });
+
   it("returns null description when SKILL.md has no frontmatter or no description field", async () => {
     const fx = await buildFixtureRepo([
       {

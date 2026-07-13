@@ -52,4 +52,3 @@ async function listFilesRecursive(absDir: string, relPrefix: string): Promise<st
   }
   return out;
 }
-
