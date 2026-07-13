@@ -51,7 +51,24 @@ export function Browse() {
         </select>
       </div>
       <table className="table">
-        <thead><tr><th></th><th>Name</th><th>Type</th><th>Source</th><th>Description</th><th></th></tr></thead>
+        <colgroup>
+          <col style={{ width: 32 }} />
+          <col style={{ width: "20%" }} />
+          <col style={{ width: "1%" }} />
+          <col style={{ width: "15%" }} />
+          <col style={{ width: "45%" }} />
+          <col style={{ width: "1%" }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th></th>
+            <th>Name</th>
+            <th style={{ whiteSpace: "nowrap" }}>Type</th>
+            <th>Source</th>
+            <th>Description</th>
+            <th style={{ whiteSpace: "nowrap" }}></th>
+          </tr>
+        </thead>
         <tbody>
           {artifacts.map((a) => (
             <tr key={a.artifactKey}>
@@ -66,7 +83,7 @@ export function Browse() {
                   {a.name}
                 </Link>
               </td>
-              <td>
+              <td style={{ whiteSpace: "nowrap" }}>
                 <span style={{
                   fontSize: 11, padding: "2px 8px", borderRadius: 10,
                   background: "rgba(255,255,255,0.08)", color: "var(--muted)",
@@ -82,7 +99,7 @@ export function Browse() {
                     color: "inherit",
                     textDecoration: "none",
                     display: "inline-block",
-                    maxWidth: 200,
+                    maxWidth: "100%",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
@@ -94,14 +111,14 @@ export function Browse() {
               </td>
               <td style={{ color: "var(--muted)" }}>
                 {a.description ? (
-                  <div className="description-clamp" title={a.description} style={{ maxWidth: 320 }}>
+                  <div className="description-clamp" title={a.description}>
                     {a.description}
                   </div>
                 ) : (
                   "—"
                 )}
               </td>
-              <td><button className="btn" onClick={() => setInstalling(a)}>Install</button></td>
+              <td style={{ whiteSpace: "nowrap" }}><button className="btn" onClick={() => setInstalling(a)}>Install</button></td>
             </tr>
           ))}
         </tbody>

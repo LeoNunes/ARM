@@ -83,3 +83,29 @@ describe("Browse — artifact type", () => {
     });
   });
 });
+
+describe("Browse — column widths", () => {
+  it("declares a colgroup with Type/Install shrink-to-fit and Description the largest column", async () => {
+    const { container } = renderBrowse();
+    await screen.findByText("alpha");
+    const cols = container.querySelectorAll("table.table > colgroup > col");
+    expect(cols).toHaveLength(6);
+    const widths = Array.from(cols).map((c) => (c as HTMLElement).style.width);
+    // [favorite, name, type, source, description, install]
+    expect(widths[2]).toBe("1%");
+    expect(widths[5]).toBe("1%");
+    expect(widths[4]).toBe("45%");
+    expect(parseFloat(widths[4])).toBeGreaterThan(parseFloat(widths[1]));
+    expect(parseFloat(widths[4])).toBeGreaterThan(parseFloat(widths[3]));
+  });
+
+  it("prevents the Type and Install cells from wrapping", async () => {
+    const { container } = renderBrowse();
+    await screen.findByText("alpha");
+    const headerRow = container.querySelector("thead tr")!;
+    const typeHeader = headerRow.children[2] as HTMLElement;
+    const installHeader = headerRow.children[5] as HTMLElement;
+    expect(typeHeader.style.whiteSpace).toBe("nowrap");
+    expect(installHeader.style.whiteSpace).toBe("nowrap");
+  });
+});
