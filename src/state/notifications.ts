@@ -26,4 +26,13 @@ export class DismissedNotificationsStore {
     const data = await this.store.read();
     return new Set(Object.keys(data));
   }
+
+  async removeBySubstring(substr: string): Promise<void> {
+    const data = await this.store.read();
+    let changed = false;
+    for (const key of Object.keys(data)) {
+      if (key.includes(substr)) { delete data[key]; changed = true; }
+    }
+    if (changed) await this.store.write(data);
+  }
 }
