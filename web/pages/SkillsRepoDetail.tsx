@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, Artifact, SkillsRepo } from "../api.ts";
 import { FavoriteStar } from "../components/FavoriteStar.tsx";
+import { EditSkillsRepoModal } from "../components/EditSkillsRepoModal.tsx";
 
 export function SkillsRepoDetail() {
   const { id = "" } = useParams();
   const [repo, setRepo] = useState<SkillsRepo | null>(null);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     api.getSkillsRepo(id).then(setRepo).catch((e: Error) => setError(e.message));
@@ -48,6 +50,7 @@ export function SkillsRepoDetail() {
             alert((err as Error).message);
           }
         }}>Refresh</button>
+        <button className="btn secondary" style={{ marginTop: 8, marginLeft: 8 }} onClick={() => setEditing(true)}>Edit</button>
       </div>
       <h3>Discovered artifacts</h3>
       <table className="table">
@@ -81,6 +84,13 @@ export function SkillsRepoDetail() {
           ))}
         </tbody>
       </table>
+      {editing && (
+        <EditSkillsRepoModal
+          repo={repo}
+          onClose={() => setEditing(false)}
+          onDone={async () => { setEditing(false); setRepo(await api.getSkillsRepo(id)); setArtifacts(await api.listArtifacts({ sourceRepoId: id })); }}
+        />
+      )}
     </>
   );
 }

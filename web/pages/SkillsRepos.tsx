@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, SkillsRepo } from "../api.ts";
 import { RegisterSkillsRepoModal } from "../components/RegisterSkillsRepoModal.tsx";
+import { EditSkillsRepoModal } from "../components/EditSkillsRepoModal.tsx";
 
 export function SkillsRepos() {
   const [repos, setRepos] = useState<SkillsRepo[]>([]);
   const [open, setOpen] = useState(false);
+  const [editRepo, setEditRepo] = useState<SkillsRepo | null>(null);
 
   const reload = () => { api.listSkillsRepos().then(setRepos); };
   useEffect(reload, []);
@@ -26,12 +28,16 @@ export function SkillsRepos() {
               <td>{r.branch}</td>
               <td>{(r.artifactPaths.skills ?? []).join(", ")}</td>
               <td>{(r.artifactPaths.rules ?? []).join(", ")}</td>
-              <td><button className="btn secondary" onClick={async () => { await api.deleteSkillsRepo(r.id); reload(); }}>Remove</button></td>
+              <td>
+                <button className="btn secondary" onClick={() => setEditRepo(r)}>Edit</button>{" "}
+                <button className="btn secondary" onClick={async () => { await api.deleteSkillsRepo(r.id); reload(); }}>Remove</button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
       {open && <RegisterSkillsRepoModal onClose={() => setOpen(false)} onDone={() => { setOpen(false); reload(); }} />}
+      {editRepo && <EditSkillsRepoModal repo={editRepo} onClose={() => setEditRepo(null)} onDone={() => { setEditRepo(null); reload(); }} />}
     </>
   );
 }
