@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { api, Artifact, SkillsRepo } from "../api.ts";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { api, Artifact, SkillsRepo, ArtifactBlocker } from "../api.ts";
 import { FavoriteStar } from "../components/FavoriteStar.tsx";
 import { EditSkillsRepoModal } from "../components/EditSkillsRepoModal.tsx";
 
 export function SkillsRepoDetail() {
   const { id = "" } = useParams();
+  const navigate = useNavigate();
   const [repo, setRepo] = useState<SkillsRepo | null>(null);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [removeBlockers, setRemoveBlockers] = useState<ArtifactBlocker[] | null>(null);
 
   useEffect(() => {
     api.getSkillsRepo(id).then(setRepo).catch((e: Error) => setError(e.message));
@@ -51,6 +53,26 @@ export function SkillsRepoDetail() {
           }
         }}>Refresh</button>
         <button className="btn secondary" style={{ marginTop: 8, marginLeft: 8 }} onClick={() => setEditing(true)}>Edit</button>
+        <button className="btn secondary" style={{ marginTop: 8, marginLeft: 8 }} onClick={async () => {
+          setRemoveBlockers(null);
+          try { await api.deleteSkillsRepo(repo.id); navigate("/skills-repos"); }
+          catch (e) {
+            const err = e as Error & { code?: string; blockers?: ArtifactBlocker[] };
+            if (err.code === "repo_in_use" && err.blockers) setRemoveBlockers(err.blockers);
+            else alert(err.message);
+          }
+        }}>Remove</button>
+        {removeBlockers && (
+          <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 8 }}>
+            Can't remove this repository — still installed:{" "}
+            {removeBlockers.map((a, i) => (
+              <span key={a.artifactKey}>
+                {i > 0 && ", "}
+                <Link to={`/artifacts?artifactKey=${encodeURIComponent(a.artifactKey)}`}>{a.name}</Link>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       <h3>Discovered artifacts</h3>
       <table className="table">
