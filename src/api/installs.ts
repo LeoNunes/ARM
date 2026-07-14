@@ -8,11 +8,8 @@ import { checkForDrift } from "../engine/drift-check";
 import { computeInstallStatus } from "../engine/status";
 import { discoverArtifacts } from "../discovery/discover";
 import { AppError } from "../util/errors";
+import { artifactDisplayName } from "../util/artifact-key";
 import type { AgentId, Install, InstallTarget } from "../state/schema";
-
-function artifactDisplayName(artifactKey: string): string {
-  return artifactKey.split(":").slice(1).join(":").split("/").pop() || artifactKey;
-}
 
 interface CreateBody {
   artifactKey: string;

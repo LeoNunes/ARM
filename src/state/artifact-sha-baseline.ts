@@ -32,4 +32,13 @@ export class ArtifactShaBaselineStore {
     }
     await this.store.write(data);
   }
+
+  async removeByKeyPrefix(prefix: string): Promise<void> {
+    const data = await this.store.read();
+    let changed = false;
+    for (const key of Object.keys(data)) {
+      if (key.startsWith(prefix)) { delete data[key]; changed = true; }
+    }
+    if (changed) await this.store.write(data);
+  }
 }

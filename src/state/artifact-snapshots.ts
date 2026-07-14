@@ -44,4 +44,20 @@ export class ArtifactSnapshotsStore {
     }
     return { snapshot: new Set(all[sourceRepoId]), wasInitialized: false };
   }
+
+  async removeRepo(sourceRepoId: string): Promise<void> {
+    const all = await this.store.read();
+    if (all[sourceRepoId] !== undefined) {
+      delete all[sourceRepoId];
+      await this.store.write(all);
+    }
+  }
+
+  async removeByKeyPrefix(sourceRepoId: string, keyPrefix: string): Promise<void> {
+    const all = await this.store.read();
+    const existing = all[sourceRepoId];
+    if (existing === undefined) return;
+    all[sourceRepoId] = existing.filter((k) => !k.startsWith(keyPrefix));
+    await this.store.write(all);
+  }
 }

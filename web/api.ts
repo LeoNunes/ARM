@@ -3,6 +3,8 @@ export interface SkillsRepo {
   artifactPaths: { skills?: string[]; rules?: string[] };
   presetId: string | null; localClonePath: string; lastFetchedAt: string | null;
 }
+export interface ArtifactBlocker { artifactKey: string; name: string; }
+export interface PathBlocker { type: "skills" | "rules"; path: string; artifacts: ArtifactBlocker[]; }
 export interface WorkingRepo { id: string; name: string; path: string; addedAt: string; }
 export interface Settings {
   favoriteAgent: "claude-code" | "cursor";
@@ -119,7 +121,9 @@ async function req<T>(method: string, url: string, body?: unknown, signal?: Abor
   if (!res.ok) {
     let err: { code?: string; message?: string } = {};
     try { err = await res.json(); } catch { /* ignore */ }
-    throw Object.assign(new Error(err.message ?? `HTTP ${res.status}`), { code: err.code, status: res.status });
+    throw Object.assign(new Error(err.message ?? `HTTP ${res.status}`), {
+      code: err.code, status: res.status, blockers: (err as { blockers?: unknown }).blockers,
+    });
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
@@ -141,6 +145,8 @@ export const api = {
   getSkillsRepo: (id: string) => req<SkillsRepo>("GET", `/api/skills-repos/${id}`),
   registerSkillsRepo: (body: { name: string; gitUrl: string; branch?: string; artifactPaths?: { skills?: string[]; rules?: string[] } }) =>
     req<SkillsRepo>("POST", "/api/skills-repos", body),
+  updateSkillsRepo: (id: string, patch: { name?: string; artifactPaths?: { skills?: string[]; rules?: string[] } }) =>
+    req<SkillsRepo>("PATCH", `/api/skills-repos/${id}`, patch),
   deleteSkillsRepo: (id: string) => req<void>("DELETE", `/api/skills-repos/${id}`),
   refreshSkillsRepo: (id: string) => req<SkillsRepo>("POST", `/api/skills-repos/${id}/refresh`),
 
