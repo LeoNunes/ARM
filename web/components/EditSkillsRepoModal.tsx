@@ -40,12 +40,12 @@ export function EditSkillsRepoModal({ repo, onClose, onDone }: { repo: SkillsRep
           <input id="edit-repo-name" value={name} onChange={(e) => setName(e.target.value)} style={{ width: "100%" }} />
         </div>
         <div className="field">
-          <label>Git URL</label>
-          <input value={repo.gitUrl} disabled style={{ width: "100%" }} />
+          <label htmlFor="edit-repo-git-url">Git URL</label>
+          <input id="edit-repo-git-url" value={repo.gitUrl} disabled style={{ width: "100%" }} />
         </div>
         <div className="field">
-          <label>Branch</label>
-          <input value={repo.branch} disabled style={{ width: "100%" }} />
+          <label htmlFor="edit-repo-branch">Branch</label>
+          <input id="edit-repo-branch" value={repo.branch} disabled style={{ width: "100%" }} />
         </div>
         <div className="field">
           <label htmlFor="edit-repo-skills">Skills paths (comma-separated)</label>

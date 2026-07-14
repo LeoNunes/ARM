@@ -20,6 +20,10 @@ Status: approved through brainstorming; ready to translate into an implementatio
 - Changing the git URL or branch of a registered repo (would require re-cloning; out of scope).
 - Editing working repos (separate concern).
 
+## 2a. Known limitation — overlapping path strings across types
+
+Path-based blocking and purge are type-agnostic, because `artifactKey` carries no artifact type. If a user configures the **same directory string** for both `skills` and `rules` (an unusual configuration), removing one type's path will (a) block on the sibling type's installs under that directory — the safe direction, and (b) on a successful removal, purge the sibling type's favorites/snapshot/dismissed entries under that directory. No installs and no on-disk files are ever affected. This is inherent to the artifactKey model and accepted for this slice.
+
 ## 3. Key facts about the existing system
 
 - `artifactKey` = `` `${sourceRepoId}:${rootRelativePath}` `` and `rootRelativePath` = `` `${configuredPath}/${name-or-filename}` `` for both the skills and rules adapters. Therefore an install originates from configured path `P` (of repo `id`) **iff** `install.sourceRepoId === id` and the install's `rootRelativePath` starts with `` `${P}/` ``.

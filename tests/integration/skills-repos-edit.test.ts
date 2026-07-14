@@ -151,8 +151,6 @@ describe("PATCH /api/skills-repos/:id — remove path guard", () => {
   });
 });
 
-import { purgeRepoState } from "../../src/engine/purge.ts";
-
 describe("DELETE /api/skills-repos/:id — guard + purge", () => {
   it("blocks removal when an artifact is installed and lists the blocker", async () => {
     const deps = await makeDeps();
