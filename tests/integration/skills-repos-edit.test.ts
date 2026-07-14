@@ -150,3 +150,45 @@ describe("PATCH /api/skills-repos/:id — remove path guard", () => {
     expect(after.json().artifactPaths.skills).toEqual(["ai/skills"]);
   });
 });
+
+import { purgeRepoState } from "../../src/engine/purge.ts";
+
+describe("DELETE /api/skills-repos/:id — guard + purge", () => {
+  it("blocks removal when an artifact is installed and lists the blocker", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    const fx = await buildFixtureRepo([{ message: "init", files: { "ai/skills/foo/SKILL.md": "# Foo\n" } }]);
+    const repo = await register(app, fx.fileUrl, { skills: ["ai/skills"] });
+    await deps.installs.add({
+      artifactKey: `${repo.id}:ai/skills/foo`, sourceRepoId: repo.id,
+      target: { type: "working-repo", workingRepoId: "wr1" }, agent: "claude-code",
+      artifactType: "skills", installedCommitSha: "sha1", autoUpdate: false,
+      installedFiles: [], installedAt: new Date().toISOString(),
+    });
+
+    const res = await app.inject({ method: "DELETE", url: `/api/skills-repos/${repo.id}` });
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({
+      code: "repo_in_use",
+      blockers: [{ artifactKey: `${repo.id}:ai/skills/foo`, name: "foo" }],
+    });
+    // Repo still present.
+    const list = await app.inject({ method: "GET", url: "/api/skills-repos" });
+    expect(list.json()).toHaveLength(1);
+  });
+
+  it("removes the repo and purges its state when nothing is installed", async () => {
+    const deps = await makeDeps();
+    const app = await buildServer(deps);
+    const fx = await buildFixtureRepo([{ message: "init", files: { "ai/skills/foo/SKILL.md": "# Foo\n" } }]);
+    const repo = await register(app, fx.fileUrl, { skills: ["ai/skills"] });
+    await deps.favorites.setFavorite(`${repo.id}:ai/skills/foo`, true);
+
+    const res = await app.inject({ method: "DELETE", url: `/api/skills-repos/${repo.id}` });
+    expect(res.statusCode).toBe(204);
+    const list = await app.inject({ method: "GET", url: "/api/skills-repos" });
+    expect(list.json()).toHaveLength(0);
+    expect((await deps.favorites.listFavorites()).size).toBe(0);
+    expect((await deps.snapshots.getSnapshot(repo.id)).size).toBe(0);
+  });
+});

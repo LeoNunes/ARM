@@ -7,7 +7,7 @@ import { AppError } from '../util/errors';
 import { runAutoUpdatePass } from '../engine/update-pass';
 import { discoverArtifacts } from '../discovery/discover';
 import { artifactRootRelativePath, artifactDisplayName } from "../util/artifact-key";
-import { purgePathState } from "../engine/purge";
+import { purgePathState, purgeRepoState } from "../engine/purge";
 import type { ArtifactTypeId, SkillsRepo } from "../state/schema";
 
 interface RegisterBody {
@@ -133,6 +133,16 @@ export async function registerSkillsReposRoutes(app: FastifyInstance, deps: Serv
   app.delete<{ Params: { id: string } }>("/api/skills-repos/:id", async (req, reply) => {
     const r = await deps.skillsRepos.get(req.params.id);
     if (!r) return reply.code(404).send({ code: "skills_repo_not_found" });
+
+    const installs = await deps.installs.list();
+    const blockers = installs
+      .filter((i) => i.sourceRepoId === r.id)
+      .map((i) => ({ artifactKey: i.artifactKey, name: artifactDisplayName(i.artifactKey) }));
+    if (blockers.length > 0) {
+      return reply.code(409).send({ code: "repo_in_use", blockers });
+    }
+
+    await purgeRepoState(deps, r.id);
     await removeClone(r.localClonePath);
     await deps.skillsRepos.remove(req.params.id);
     return reply.code(204).send();
