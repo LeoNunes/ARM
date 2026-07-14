@@ -6,6 +6,9 @@ import { newId } from '../util/ids';
 import { AppError } from '../util/errors';
 import { runAutoUpdatePass } from '../engine/update-pass';
 import { discoverArtifacts } from '../discovery/discover';
+import { artifactRootRelativePath, artifactDisplayName } from "../util/artifact-key";
+import { purgePathState } from "../engine/purge";
+import type { ArtifactTypeId, SkillsRepo } from "../state/schema";
 
 interface RegisterBody {
   name: string;
@@ -52,6 +55,79 @@ export async function registerSkillsReposRoutes(app: FastifyInstance, deps: Serv
       throw err;
     }
     return reply.code(201).send(created);
+  });
+
+  app.patch<{
+    Params: { id: string };
+    Body: { name?: string; artifactPaths?: Partial<Record<ArtifactTypeId, string[]>> };
+  }>("/api/skills-repos/:id", async (req, reply) => {
+    const repo = await deps.skillsRepos.get(req.params.id);
+    if (!repo) return reply.code(404).send({ code: "skills_repo_not_found" });
+
+    const { name, artifactPaths } = req.body ?? {};
+    if (name === undefined && artifactPaths === undefined) {
+      throw new AppError("bad_input", "name or artifactPaths required");
+    }
+
+    // Diff paths per type.
+    const removed: { type: ArtifactTypeId; path: string }[] = [];
+    const added: { type: ArtifactTypeId; path: string }[] = [];
+    if (artifactPaths) {
+      const types = new Set<ArtifactTypeId>([
+        ...Object.keys(repo.artifactPaths) as ArtifactTypeId[],
+        ...Object.keys(artifactPaths) as ArtifactTypeId[],
+      ]);
+      for (const type of types) {
+        const before = repo.artifactPaths[type] ?? [];
+        const after = artifactPaths[type] ?? before; // omitted type = unchanged
+        for (const p of before) if (!after.includes(p)) removed.push({ type, path: p });
+        for (const p of after) if (!before.includes(p)) added.push({ type, path: p });
+      }
+    }
+
+    // Guard removed paths.
+    if (removed.length > 0) {
+      const installs = await deps.installs.list();
+      const mine = installs.filter((i) => i.sourceRepoId === repo.id);
+      const blockers = removed
+        .map(({ type, path }) => {
+          const artifacts = mine
+            .filter((i) => artifactRootRelativePath(i.artifactKey).startsWith(`${path}/`))
+            .map((i) => ({ artifactKey: i.artifactKey, name: artifactDisplayName(i.artifactKey) }));
+          return { type, path, artifacts };
+        })
+        .filter((b) => b.artifacts.length > 0);
+      if (blockers.length > 0) {
+        return reply.code(409).send({ code: "paths_in_use", blockers });
+      }
+    }
+
+    // Build the patch. For artifactPaths, merge onto the existing object so
+    // omitted types are preserved.
+    const patch: { name?: string; artifactPaths?: SkillsRepo["artifactPaths"] } = {};
+    if (name !== undefined) patch.name = name;
+    let mergedPaths = repo.artifactPaths;
+    if (artifactPaths) {
+      mergedPaths = { ...repo.artifactPaths, ...artifactPaths };
+      patch.artifactPaths = mergedPaths;
+    }
+    const updated = await deps.skillsRepos.update(repo.id, patch);
+
+    // Seed added paths silently so they don't surface as new-artifact notifications.
+    if (added.length > 0) {
+      const artifacts = await discoverArtifacts(updated, deps.registries.types);
+      const addedKeys = artifacts
+        .filter((a) => added.some(({ path }) => a.rootRelativePath.startsWith(`${path}/`)))
+        .map((a) => a.artifactKey);
+      if (addedKeys.length > 0) await deps.snapshots.addToSnapshot(updated.id, addedKeys);
+    }
+
+    // Purge state for successfully-removed paths.
+    for (const { path } of removed) {
+      await purgePathState(deps, repo.id, path);
+    }
+
+    return updated;
   });
 
   app.delete<{ Params: { id: string } }>("/api/skills-repos/:id", async (req, reply) => {
