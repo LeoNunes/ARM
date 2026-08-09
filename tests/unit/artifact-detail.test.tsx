@@ -155,3 +155,59 @@ describe("ArtifactDetail — Installs", () => {
     expect(await screen.findByText(/Not installed anywhere/)).toBeTruthy();
   });
 });
+
+describe("ArtifactDetail — Version History column widths", () => {
+  it("declares a colgroup shrinking SHA/Date/action and giving Subject the remaining space", async () => {
+    renderDetail();
+    await screen.findByText("add retry logic");
+    const table = screen.getByText("SHA").closest("table")!;
+    const cols = table.querySelectorAll("colgroup > col");
+    expect(cols).toHaveLength(4);
+    expect(cols[0]).toHaveClass("col-shrink");
+    expect(cols[1]).toHaveClass("col-shrink");
+    expect((cols[2] as HTMLElement).style.width).toBe("70%");
+    expect(cols[3]).toHaveClass("col-shrink");
+  });
+
+  it("truncates the Subject cell with an ellipsis and exposes the full value via title", async () => {
+    renderDetail();
+    await screen.findByText("add retry logic");
+    const table = screen.getByText("SHA").closest("table")!;
+    const row = table.querySelector("tbody tr")!;
+    const subjectCell = row.children[2] as HTMLElement;
+    expect(subjectCell).toHaveClass("col-truncate");
+    expect(subjectCell).toHaveAttribute("title", "add retry logic");
+  });
+});
+
+describe("ArtifactDetail — Installs column widths", () => {
+  it("declares a colgroup sizing Target and the actions column, with the rest shrunk", async () => {
+    renderDetail();
+    await screen.findByText("my-repo");
+    const table = screen.getByText("Target").closest("table")!;
+    const cols = table.querySelectorAll("colgroup > col");
+    expect(cols).toHaveLength(6);
+    expect((cols[0] as HTMLElement).style.width).toBe("24%");
+    [1, 2, 3, 4].forEach((i) => expect(cols[i]).toHaveClass("col-shrink"));
+    expect((cols[5] as HTMLElement).style.width).toBe("30%");
+  });
+
+  it("truncates the Target cell with an ellipsis and exposes the full value via title", async () => {
+    renderDetail();
+    await screen.findByText("my-repo");
+    const table = screen.getByText("Target").closest("table")!;
+    const row = table.querySelector("tbody tr")!;
+    const targetCell = row.children[0] as HTMLElement;
+    expect(targetCell).toHaveClass("col-truncate");
+    expect(targetCell).toHaveAttribute("title", "my-repo");
+  });
+
+  it("gives the actions cell the wrap class so multiple buttons flow onto new rows", async () => {
+    renderDetail();
+    await screen.findByText("my-repo");
+    const table = screen.getByText("Target").closest("table")!;
+    const row = table.querySelector("tbody tr")!;
+    const actionsCell = row.children[5] as HTMLElement;
+    expect(actionsCell).toHaveClass("col-actions-wrap");
+  });
+});

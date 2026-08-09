@@ -181,6 +181,12 @@ export function ArtifactDetail() {
       <section style={{ marginBottom: 32 }}>
         <h3 style={{ marginTop: 0 }}>Version History</h3>
         <table className="table">
+          <colgroup>
+            <col className="col-shrink" />
+            <col className="col-shrink" />
+            <col style={{ width: "70%" }} />
+            <col className="col-shrink" />
+          </colgroup>
           <thead>
             <tr><th>SHA</th><th>Date</th><th>Subject</th><th></th></tr>
           </thead>
@@ -190,7 +196,7 @@ export function ArtifactDetail() {
                 key={h.sha}
                 style={{ background: comparingSha === h.sha ? "rgba(255,255,255,0.06)" : "" }}
               >
-                <td>
+                <td className="col-shrink">
                   <span
                     style={{ fontFamily: "monospace", fontSize: 12, cursor: "pointer", color: "var(--muted)" }}
                     onClick={() => setSelectedSha(h.sha)}
@@ -199,9 +205,9 @@ export function ArtifactDetail() {
                     {h.sha.slice(0, 7)}
                   </span>
                 </td>
-                <td style={{ color: "var(--muted)", fontSize: 12 }}>{h.date.slice(0, 10)}</td>
-                <td style={{ fontSize: 13 }}>{h.subject}</td>
-                <td>
+                <td className="col-shrink" style={{ color: "var(--muted)", fontSize: 12 }}>{h.date.slice(0, 10)}</td>
+                <td className="col-truncate" title={h.subject} style={{ fontSize: 13 }}>{h.subject}</td>
+                <td className="col-shrink">
                   {comparingSha === null ? (
                     <button className="btn secondary" style={{ fontSize: 11 }} onClick={() => setComparingSha(h.sha)}>
                       Compare
@@ -239,6 +245,14 @@ export function ArtifactDetail() {
           </p>
         ) : (
           <table className="table">
+            <colgroup>
+              <col style={{ width: "24%" }} />
+              <col className="col-shrink" />
+              <col className="col-shrink" />
+              <col className="col-shrink" />
+              <col className="col-shrink" />
+              <col style={{ width: "30%" }} />
+            </colgroup>
             <thead>
               <tr><th>Target</th><th>Agent</th><th>Installed version</th><th>Status</th><th>Auto-update</th><th></th></tr>
             </thead>
@@ -249,9 +263,9 @@ export function ArtifactDetail() {
                   : "Global";
                 return (
                   <tr key={i.id}>
-                    <td>{targetName}</td>
-                    <td>{i.agent}</td>
-                    <td>
+                    <td className="col-truncate" title={targetName}>{targetName}</td>
+                    <td className="col-shrink">{i.agent}</td>
+                    <td className="col-shrink">
                       <span
                         style={{ fontFamily: "monospace", fontSize: 12, cursor: "pointer", color: "var(--muted)" }}
                         onClick={() => setSelectedSha(i.installedCommitSha)}
@@ -260,9 +274,9 @@ export function ArtifactDetail() {
                         {i.installedCommitSha.slice(0, 7)}
                       </span>
                     </td>
-                    <td><StatusPill status={i.status} /></td>
-                    <td style={{ fontSize: 12, color: "var(--muted)" }}>{i.autoUpdate ? "on" : "off"}</td>
-                    <td style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <td className="col-shrink"><StatusPill status={i.status} /></td>
+                    <td className="col-shrink" style={{ fontSize: 12, color: "var(--muted)" }}>{i.autoUpdate ? "on" : "off"}</td>
+                    <td className="col-actions-wrap" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       {(i.status === "update-available+drifted") && (<>
                         <Link to={`/diff?mode=installed-vs-latest&installId=${i.id}`}
                           style={{ fontSize: 12, padding: "4px 8px", background: "transparent", color: "var(--muted)", textDecoration: "none", border: "1px solid var(--border)", borderRadius: 4 }}>
