@@ -72,3 +72,27 @@ describe("SkillsRepoDetail — artifact paths", () => {
     expect(screen.getByText("Rules paths:")).toBeTruthy();
   });
 });
+
+describe("SkillsRepoDetail — column widths", () => {
+  it("declares a colgroup with the favorite column fixed-width, Description largest, and Path truncating", async () => {
+    const { container } = renderDetail();
+    await screen.findByText("alpha");
+    const cols = container.querySelectorAll("table.table > colgroup > col");
+    expect(cols).toHaveLength(5);
+    expect(cols[0]).toHaveClass("col-icon");
+    const widths = Array.from(cols).map((c) => (c as HTMLElement).style.width);
+    expect(widths[1]).toBe("20%");
+    expect(widths[3]).toBe("45%");
+    expect(widths[4]).toBe("25%");
+    expect(cols[2]).toHaveClass("col-shrink");
+  });
+
+  it("truncates the Path cell with an ellipsis and exposes the full value via title", async () => {
+    const { container } = renderDetail();
+    await screen.findByText("alpha");
+    const rows = container.querySelectorAll("tbody tr");
+    const pathCell = rows[0]!.children[4] as HTMLElement;
+    expect(pathCell).toHaveClass("col-truncate");
+    expect(pathCell).toHaveAttribute("title", "skills/bravo");
+  });
+});

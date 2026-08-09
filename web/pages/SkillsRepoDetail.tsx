@@ -76,14 +76,21 @@ export function SkillsRepoDetail() {
       </div>
       <h3>Discovered artifacts</h3>
       <table className="table">
+        <colgroup>
+          <col className="col-icon" />
+          <col style={{ width: "20%" }} />
+          <col className="col-shrink" />
+          <col style={{ width: "45%" }} />
+          <col style={{ width: "25%" }} />
+        </colgroup>
         <thead><tr><th></th><th>Name</th><th>Type</th><th>Description</th><th>Path</th></tr></thead>
         <tbody>
           {artifacts.map((a) => (
             <tr key={a.artifactKey}>
-              <td>
+              <td className="col-icon">
                 <FavoriteStar favorited={a.isFavorite} onToggle={() => handleToggleFavorite(a)} />
               </td>
-              <td>
+              <td className="col-truncate" title={a.name}>
                 <Link
                   to={`/artifacts?artifactKey=${encodeURIComponent(a.artifactKey)}`}
                   style={{ color: "inherit", textDecoration: "none", fontWeight: 500 }}
@@ -91,17 +98,17 @@ export function SkillsRepoDetail() {
                   {a.name}
                 </Link>
               </td>
-              <td>{a.type}</td>
+              <td className="col-shrink">{a.type}</td>
               <td style={{ color: "var(--muted)" }}>
                 {a.description ? (
-                  <div className="description-clamp" title={a.description} style={{ maxWidth: 320 }}>
+                  <div className="description-clamp" title={a.description}>
                     {a.description}
                   </div>
                 ) : (
                   "—"
                 )}
               </td>
-              <td style={{ color: "var(--muted)" }}>{a.rootRelativePath}</td>
+              <td className="col-truncate" title={a.rootRelativePath} style={{ color: "var(--muted)" }}>{a.rootRelativePath}</td>
             </tr>
           ))}
         </tbody>
