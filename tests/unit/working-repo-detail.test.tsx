@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 afterEach(cleanup);
-import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { WorkingRepoDetail } from "../../web/pages/WorkingRepoDetail.tsx";
 import type { InstallWithStatus } from "../../web/api.ts";
 
