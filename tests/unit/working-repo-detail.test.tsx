@@ -92,3 +92,33 @@ describe("WorkingRepoDetail", () => {
     expect(diffLinks.length).toBeGreaterThan(0);
   });
 });
+
+describe("WorkingRepoDetail — column widths", () => {
+  it("declares a colgroup sizing Skill and the actions column, with the rest shrunk", async () => {
+    const { container } = renderDetail();
+    await screen.findByText("Status");
+    const cols = container.querySelectorAll("table.table > colgroup > col");
+    expect(cols).toHaveLength(7);
+    const widths = Array.from(cols).map((c) => (c as HTMLElement).style.width);
+    expect(widths[0]).toBe("26%");
+    expect(widths[6]).toBe("26%");
+    [1, 2, 3, 4, 5].forEach((i) => expect(cols[i]).toHaveClass("col-shrink"));
+  });
+
+  it("truncates the Skill cell with an ellipsis and exposes the full value via title", async () => {
+    const { container } = renderDetail();
+    await screen.findByText("Status");
+    const rows = container.querySelectorAll("tbody tr");
+    const skillCell = rows[0]!.children[0] as HTMLElement;
+    expect(skillCell).toHaveClass("col-truncate");
+    expect(skillCell).toHaveAttribute("title", "foo");
+  });
+
+  it("gives the actions cell the wrap class so multiple buttons flow onto new rows", async () => {
+    const { container } = renderDetail();
+    await screen.findByText("Status");
+    const rows = container.querySelectorAll("tbody tr");
+    const actionsCell = rows[0]!.children[6] as HTMLElement;
+    expect(actionsCell).toHaveClass("col-actions-wrap");
+  });
+});

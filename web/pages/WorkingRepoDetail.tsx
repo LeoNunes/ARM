@@ -74,6 +74,15 @@ export function WorkingRepoDetail() {
 
       <h3 style={{ marginTop: 0 }}>Installed</h3>
       <table className="table">
+        <colgroup>
+          <col style={{ width: "26%" }} />
+          <col className="col-shrink" />
+          <col className="col-shrink" />
+          <col className="col-shrink" />
+          <col className="col-shrink" />
+          <col className="col-shrink" />
+          <col style={{ width: "26%" }} />
+        </colgroup>
         <thead>
           <tr>
             <th>Skill</th>
@@ -91,7 +100,7 @@ export function WorkingRepoDetail() {
             const name = rel?.split("/").pop() ?? rel;
             return (
               <tr key={i.id}>
-                <td>
+                <td className="col-truncate" title={name}>
                   <Link
                     to={`/artifacts?artifactKey=${encodeURIComponent(i.artifactKey)}`}
                     style={{ color: "inherit", textDecoration: "none", fontWeight: 500 }}
@@ -99,12 +108,12 @@ export function WorkingRepoDetail() {
                     {name}
                   </Link>
                 </td>
-                <td style={{ color: "var(--muted)" }}>{i.sourceRepoId.slice(0, 8)}</td>
-                <td>{i.agent}</td>
-                <td style={{ color: "var(--muted)" }}>{i.installedCommitSha.slice(0, 7)}</td>
-                <td><StatusPill status={i.status} /></td>
-                <td>{i.autoUpdate ? "on" : "off"}</td>
-                <td style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <td className="col-shrink" style={{ color: "var(--muted)" }}>{i.sourceRepoId.slice(0, 8)}</td>
+                <td className="col-shrink">{i.agent}</td>
+                <td className="col-shrink" style={{ color: "var(--muted)" }}>{i.installedCommitSha.slice(0, 7)}</td>
+                <td className="col-shrink"><StatusPill status={i.status} /></td>
+                <td className="col-shrink">{i.autoUpdate ? "on" : "off"}</td>
+                <td className="col-actions-wrap" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {(i.status === "update-available+drifted") && (
                     <>
                       <Link
