@@ -89,28 +89,47 @@ describe("Browse — artifact type", () => {
 });
 
 describe("Browse — column widths", () => {
-  it("declares a colgroup with Type/Install shrink-to-fit and Description the largest column", async () => {
+  it("gives the favorite-star column a fixed icon width via col-icon", async () => {
     const { container } = renderBrowse();
     await screen.findByText("alpha");
     const cols = container.querySelectorAll("table.table > colgroup > col");
     expect(cols).toHaveLength(6);
+    expect(cols[0]).toHaveClass("col-icon");
+  });
+
+  it("shrinks the Type and Install columns to fit their content", async () => {
+    const { container } = renderBrowse();
+    await screen.findByText("alpha");
+    const cols = container.querySelectorAll("table.table > colgroup > col");
+    expect(cols[2]).toHaveClass("col-shrink");
+    expect(cols[5]).toHaveClass("col-shrink");
+    const headerRow = container.querySelector("thead tr")!;
+    expect(headerRow.children[2]).toHaveClass("col-shrink");
+    expect(headerRow.children[5]).toHaveClass("col-shrink");
+  });
+
+  it("gives Description the largest share of the row, ahead of Name and Source", async () => {
+    const { container } = renderBrowse();
+    await screen.findByText("alpha");
+    const cols = container.querySelectorAll("table.table > colgroup > col");
     const widths = Array.from(cols).map((c) => (c as HTMLElement).style.width);
     // [favorite, name, type, source, description, install]
-    expect(widths[2]).toBe("1%");
-    expect(widths[5]).toBe("1%");
     expect(widths[4]).toBe("45%");
     expect(parseFloat(widths[4])).toBeGreaterThan(parseFloat(widths[1]));
     expect(parseFloat(widths[4])).toBeGreaterThan(parseFloat(widths[3]));
   });
 
-  it("prevents the Type and Install cells from wrapping", async () => {
+  it("truncates the Name and Source cells with an ellipsis and exposes the full value via title", async () => {
     const { container } = renderBrowse();
     await screen.findByText("alpha");
-    const headerRow = container.querySelector("thead tr")!;
-    const typeHeader = headerRow.children[2] as HTMLElement;
-    const installHeader = headerRow.children[5] as HTMLElement;
-    expect(typeHeader.style.whiteSpace).toBe("nowrap");
-    expect(installHeader.style.whiteSpace).toBe("nowrap");
+    const rows = container.querySelectorAll("tbody tr");
+    const firstRow = rows[0]!;
+    const nameCell = firstRow.children[1] as HTMLElement;
+    const sourceCell = firstRow.children[3] as HTMLElement;
+    expect(nameCell).toHaveClass("col-truncate");
+    expect(nameCell).toHaveAttribute("title", "bravo");
+    expect(sourceCell).toHaveClass("col-truncate");
+    expect(sourceCell).toHaveAttribute("title", "acme-skills");
   });
 });
 

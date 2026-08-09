@@ -77,12 +77,12 @@ export function Browse() {
       </div>
       <table className="table">
         <colgroup>
-          <col style={{ width: 32 }} />
+          <col className="col-icon" />
           <col style={{ width: "20%" }} />
-          <col style={{ width: "1%" }} />
+          <col className="col-shrink" />
           <col style={{ width: "15%" }} />
           <col style={{ width: "45%" }} />
-          <col style={{ width: "1%" }} />
+          <col className="col-shrink" />
         </colgroup>
         <thead>
           <tr>
@@ -92,7 +92,7 @@ export function Browse() {
                 Name{sortArrow("name")}
               </button>
             </th>
-            <th style={{ whiteSpace: "nowrap" }}>
+            <th className="col-shrink">
               <button type="button" className="th-sort" onClick={() => handleSort("type")}>
                 Type{sortArrow("type")}
               </button>
@@ -103,16 +103,16 @@ export function Browse() {
               </button>
             </th>
             <th>Description</th>
-            <th style={{ whiteSpace: "nowrap" }}></th>
+            <th className="col-shrink"></th>
           </tr>
         </thead>
         <tbody>
           {sortedArtifacts.map((a) => (
             <tr key={a.artifactKey}>
-              <td>
+              <td className="col-icon">
                 <FavoriteStar favorited={a.isFavorite} onToggle={() => handleToggleFavorite(a)} />
               </td>
-              <td>
+              <td className="col-truncate" title={a.name}>
                 <Link
                   to={`/artifacts?artifactKey=${encodeURIComponent(a.artifactKey)}`}
                   style={{ color: "inherit", textDecoration: "none", fontWeight: 500 }}
@@ -120,7 +120,7 @@ export function Browse() {
                   {a.name}
                 </Link>
               </td>
-              <td style={{ whiteSpace: "nowrap" }}>
+              <td className="col-shrink">
                 <span style={{
                   fontSize: 11, padding: "2px 8px", borderRadius: 10,
                   background: "rgba(255,255,255,0.08)", color: "var(--muted)",
@@ -128,20 +128,10 @@ export function Browse() {
                   {a.type === "skills" ? "skill" : "rule"}
                 </span>
               </td>
-              <td style={{ color: "var(--muted)" }}>
+              <td className="col-truncate" title={a.sourceName} style={{ color: "var(--muted)" }}>
                 <Link
                   to={`/skills-repos/${a.sourceRepoId}`}
-                  title={a.sourceName}
-                  style={{
-                    color: "inherit",
-                    textDecoration: "none",
-                    display: "inline-block",
-                    maxWidth: "100%",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    verticalAlign: "bottom",
-                  }}
+                  style={{ color: "inherit", textDecoration: "none" }}
                 >
                   {a.sourceName}
                 </Link>
@@ -155,7 +145,7 @@ export function Browse() {
                   "—"
                 )}
               </td>
-              <td style={{ whiteSpace: "nowrap" }}><button className="btn" onClick={() => setInstalling(a)}>Install</button></td>
+              <td className="col-shrink"><button className="btn" onClick={() => setInstalling(a)}>Install</button></td>
             </tr>
           ))}
         </tbody>
