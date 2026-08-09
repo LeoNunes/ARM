@@ -16,13 +16,18 @@ export function WorkingRepos() {
         <button className="btn" style={{ marginLeft: "auto" }} onClick={() => setOpen(true)}>+ Register</button>
       </div>
       <table className="table">
+        <colgroup>
+          <col style={{ width: "30%" }} />
+          <col style={{ width: "65%" }} />
+          <col className="col-shrink" />
+        </colgroup>
         <thead><tr><th>Name</th><th>Path</th><th></th></tr></thead>
         <tbody>
           {repos.map((r) => (
             <tr key={r.id}>
-              <td><Link to={`/working-repos/${r.id}`}>{r.name}</Link></td>
-              <td style={{ color: "var(--muted)" }}>{r.path}</td>
-              <td><button className="btn secondary" onClick={async () => { await api.deleteWorkingRepo(r.id); reload(); }}>Remove</button></td>
+              <td className="col-truncate" title={r.name}><Link to={`/working-repos/${r.id}`}>{r.name}</Link></td>
+              <td className="col-truncate" title={r.path} style={{ color: "var(--muted)" }}>{r.path}</td>
+              <td className="col-shrink"><button className="btn secondary" onClick={async () => { await api.deleteWorkingRepo(r.id); reload(); }}>Remove</button></td>
             </tr>
           ))}
         </tbody>
