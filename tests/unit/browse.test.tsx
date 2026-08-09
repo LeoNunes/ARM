@@ -103,9 +103,6 @@ describe("Browse — column widths", () => {
     const cols = container.querySelectorAll("table.table > colgroup > col");
     expect(cols[2]).toHaveClass("col-shrink");
     expect(cols[5]).toHaveClass("col-shrink");
-    const headerRow = container.querySelector("thead tr")!;
-    expect(headerRow.children[2]).toHaveClass("col-shrink");
-    expect(headerRow.children[5]).toHaveClass("col-shrink");
   });
 
   it("gives Description the largest share of the row, ahead of Name and Source", async () => {

@@ -87,10 +87,13 @@ describe("SkillsRepoDetail — column widths", () => {
     expect(cols[2]).toHaveClass("col-shrink");
   });
 
-  it("truncates the Path cell with an ellipsis and exposes the full value via title", async () => {
+  it("truncates the Name and Path cells with an ellipsis and exposes the full value via title", async () => {
     const { container } = renderDetail();
     await screen.findByText("alpha");
     const rows = container.querySelectorAll("tbody tr");
+    const nameCell = rows[0]!.children[1] as HTMLElement;
+    expect(nameCell).toHaveClass("col-truncate");
+    expect(nameCell).toHaveAttribute("title", "bravo");
     const pathCell = rows[0]!.children[4] as HTMLElement;
     expect(pathCell).toHaveClass("col-truncate");
     expect(pathCell).toHaveAttribute("title", "skills/bravo");

@@ -92,7 +92,7 @@ export function Browse() {
                 Name{sortArrow("name")}
               </button>
             </th>
-            <th className="col-shrink">
+            <th>
               <button type="button" className="th-sort" onClick={() => handleSort("type")}>
                 Type{sortArrow("type")}
               </button>
@@ -103,7 +103,7 @@ export function Browse() {
               </button>
             </th>
             <th>Description</th>
-            <th className="col-shrink"></th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
