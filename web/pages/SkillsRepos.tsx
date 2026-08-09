@@ -43,21 +43,33 @@ export function SkillsRepos() {
         </div>
       )}
       <table className="table">
+        <colgroup>
+          <col style={{ width: "16%" }} />
+          <col style={{ width: "28%" }} />
+          <col style={{ width: "10%" }} />
+          <col style={{ width: "18%" }} />
+          <col style={{ width: "18%" }} />
+          <col className="col-shrink" />
+        </colgroup>
         <thead><tr><th>Name</th><th>Git URL</th><th>Branch</th><th>Skills paths</th><th>Rules paths</th><th></th></tr></thead>
         <tbody>
-          {repos.map((r) => (
-            <tr key={r.id}>
-              <td><Link to={`/skills-repos/${r.id}`}>{r.name}</Link></td>
-              <td style={{ color: "var(--muted)" }}>{r.gitUrl}</td>
-              <td>{r.branch}</td>
-              <td>{(r.artifactPaths.skills ?? []).join(", ")}</td>
-              <td>{(r.artifactPaths.rules ?? []).join(", ")}</td>
-              <td>
-                <button className="btn secondary" onClick={() => setEditRepo(r)}>Edit</button>{" "}
-                <button className="btn secondary" onClick={() => remove(r)}>Remove</button>
-              </td>
-            </tr>
-          ))}
+          {repos.map((r) => {
+            const skillsPaths = (r.artifactPaths.skills ?? []).join(", ");
+            const rulesPaths = (r.artifactPaths.rules ?? []).join(", ");
+            return (
+              <tr key={r.id}>
+                <td className="col-truncate" title={r.name}><Link to={`/skills-repos/${r.id}`}>{r.name}</Link></td>
+                <td className="col-truncate" title={r.gitUrl} style={{ color: "var(--muted)" }}>{r.gitUrl}</td>
+                <td className="col-truncate" title={r.branch}>{r.branch}</td>
+                <td className="col-truncate" title={skillsPaths}>{skillsPaths}</td>
+                <td className="col-truncate" title={rulesPaths}>{rulesPaths}</td>
+                <td className="col-shrink">
+                  <button className="btn secondary" onClick={() => setEditRepo(r)}>Edit</button>{" "}
+                  <button className="btn secondary" onClick={() => remove(r)}>Remove</button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       {open && <RegisterSkillsRepoModal onClose={() => setOpen(false)} onDone={() => { setOpen(false); reload(); }} />}
