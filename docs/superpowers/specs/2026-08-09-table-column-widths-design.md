@@ -15,7 +15,7 @@ Added to `web/styles/theme.css`, next to the existing `.table` rules:
 
 | Class | Rule | Purpose |
 |---|---|---|
-| `.col-icon` | `width: 32px; text-align: center;` | Icon-only columns with no header label (favorite-star toggle). Matches the fixed 32px already used in Browse. |
+| `.col-icon` | `width: 1%; white-space: nowrap; text-align: center;` | Icon-only columns with no header label (favorite-star toggle). Uses the same shrink-to-fit trick as `.col-shrink` (a fixed `px` width is only a hint in auto table layout and can be stretched by leftover space) plus centering for the icon. |
 | `.col-shrink` | `width: 1%; white-space: nowrap;` | Shrink-to-fit columns: badges/pills, short fixed-format values (on/off, short SHAs, dates), and single/double-button action cells. Same "1% + nowrap" trick already used for Browse's Type/Install columns. |
 | `.col-truncate` | `max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;` | Free-text columns that can run long (names, paths, URLs, commit subjects). Paired with a `%` width on the corresponding `<col>`. The cell also gets a `title={value}` attribute so the full value is visible on hover. |
 | `.col-actions-wrap` | `width: 22%;` (cell content keeps its existing `display: flex; flexWrap: wrap` inline style) | Action cells that can render multiple buttons and already wrap internally. Wider than `.col-shrink` so 2+ buttons sit per row instead of stacking into a tall single column. |
