@@ -1,14 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import type { ServerDeps } from "../server";
-import { installArtifact } from "../engine/install";
-import { uninstallArtifact } from "../engine/uninstall";
-import { applyUpdate } from "../engine/apply-update";
 import { checkForUpdates } from "../engine/update-check";
 import { checkForDrift } from "../engine/drift-check";
 import { computeInstallStatus } from "../engine/status";
-import { discoverArtifacts } from "../discovery/discover";
+import { createInstall, updateInstall, reapplyInstall, removeInstall } from "../services/install-ops";
 import { AppError } from "../util/errors";
-import { artifactDisplayName } from "../util/artifact-key";
 import type { AgentId, Install, InstallTarget } from "../state/schema";
 
 interface CreateBody {
@@ -56,56 +52,7 @@ export async function registerInstallsRoutes(app: FastifyInstance, deps: ServerD
 
   app.post<{ Body: CreateBody }>("/api/installs", async (req, reply) => {
     const body = req.body ?? ({} as CreateBody);
-    if (!body.artifactKey || !body.target) throw new AppError("bad_input", "artifactKey and target required");
-    const settings = await deps.settings.read();
-    const agentId = body.agent ?? settings.favoriteAgent;
-    let agent;
-    try {
-      agent = deps.registries.agents.get(agentId);
-    } catch {
-      throw new AppError("bad_input", `unknown agent: ${agentId}`);
-    }
-
-    const sources = await deps.skillsRepos.list();
-    const [sourceRepoId] = body.artifactKey.split(":", 1);
-    const skillsRepo = sources.find((s) => s.id === sourceRepoId);
-    if (!skillsRepo) throw new AppError("skills_repo_not_found", `unknown source: ${sourceRepoId}`);
-
-    const allArtifacts = await discoverArtifacts(skillsRepo, deps.registries.types);
-    const artifact = allArtifacts.find((a) => a.artifactKey === body.artifactKey);
-    if (!artifact) throw new AppError("artifact_not_found", body.artifactKey);
-
-    let workingRepo;
-    let existing;
-    if (body.target.type === "working-repo") {
-      workingRepo = await deps.workingRepos.get(body.target.workingRepoId);
-      if (!workingRepo) throw new AppError("working_repo_not_found", body.target.workingRepoId);
-      existing = await deps.installs.findExisting(body.artifactKey, body.target, agentId);
-      if (existing) throw new AppError("already_installed", `${body.artifactKey} already installed in ${workingRepo.name}`);
-    } else {
-      existing = await deps.installs.findExisting(body.artifactKey, body.target, agentId);
-      if (existing) throw new AppError("already_installed", `${body.artifactKey} already installed globally for ${agentId}`);
-    }
-
-    const targetInstalls = workingRepo ? await deps.installs.listByWorkingRepo(workingRepo.id) : [];
-    const sha = body.sha ?? artifact.lastTouchedSha;
-    if (!sha) throw new AppError("bad_input", "could not resolve SHA for artifact");
-
-    const record = await installArtifact({
-      artifact, skillsRepo, target: body.target, workingRepo, agent, sha,
-      autoUpdate: body.autoUpdate ?? false,
-      existingInstallsInTarget: targetInstalls,
-    });
-    const persisted = await deps.installs.add(record);
-    const targetName = workingRepo ? `'${workingRepo.name}'` : `globally (${agentId})`;
-    deps.activityLog.add({
-      ts: new Date().toISOString(),
-      category: "install",
-      summary: `Installed '${artifact.name}' into ${targetName}`,
-      artifactKey: body.artifactKey,
-      workingRepoId: workingRepo?.id,
-      sourceRepoId: skillsRepo.id,
-    }).catch(() => {});
+    const persisted = await createInstall(deps, body);
     return reply.code(201).send(persisted);
   });
 
@@ -120,67 +67,17 @@ export async function registerInstallsRoutes(app: FastifyInstance, deps: ServerD
     return updated;
   });
 
-  app.post<{ Params: { id: string } }>("/api/installs/:id/update", async (req, reply) => {
-    const install = await deps.installs.get(req.params.id);
-    if (!install) return reply.code(404).send({ code: "install_not_found" });
-    if (install.target.type !== "working-repo") {
-      throw new AppError("bad_input", "update only supported for working-repo targets");
-    }
-    const sr = await deps.skillsRepos.get(install.sourceRepoId);
-    if (!sr) throw new AppError("skills_repo_not_found", install.sourceRepoId);
-    const wr = await deps.workingRepos.get(install.target.workingRepoId);
-    if (!wr) throw new AppError("working_repo_not_found", install.target.workingRepoId);
-    const updateResult = await checkForUpdates(install, sr);
-    if (!updateResult.hasUpdate || !updateResult.availableSha) {
-      throw new AppError("bad_input", "no update available for this install");
-    }
-    const agent = deps.registries.agents.get(install.agent);
-    const others = (await deps.installs.listByWorkingRepo(wr.id)).filter((i) => i.id !== install.id);
-    const patch = await applyUpdate({
-      install, skillsRepo: sr, workingRepo: wr,
-      newSha: updateResult.availableSha, agent,
-      otherInstallsInTarget: others,
-    });
-    const updated = await deps.installs.update(install.id, patch);
-    deps.activityLog.add({
-      ts: new Date().toISOString(),
-      category: "install",
-      summary: `Updated '${artifactDisplayName(install.artifactKey)}' in '${wr.name}'`,
-      detail: `${install.installedCommitSha.slice(0, 7)} → ${updateResult.availableSha!.slice(0, 7)}`,
-      artifactKey: install.artifactKey,
-      workingRepoId: wr.id,
-      sourceRepoId: install.sourceRepoId,
-    }).catch(() => {});
-    return updated;
+  // The browser puts the drift diff in front of the user before they click, so the
+  // human has already made the call: these routes opt past the drift gate that
+  // protects non-interactive callers such as the MCP tools.
+  app.post<{ Params: { id: string } }>("/api/installs/:id/update", async (req) => {
+    const { install } = await updateInstall(deps, { installId: req.params.id, force: true });
+    return install;
   });
 
-  app.post<{ Params: { id: string } }>("/api/installs/:id/reapply", async (req, reply) => {
-    const install = await deps.installs.get(req.params.id);
-    if (!install) return reply.code(404).send({ code: "install_not_found" });
-    if (install.target.type !== "working-repo") {
-      throw new AppError("bad_input", "reapply only supported for working-repo targets");
-    }
-    const sr = await deps.skillsRepos.get(install.sourceRepoId);
-    if (!sr) throw new AppError("skills_repo_not_found", install.sourceRepoId);
-    const wr = await deps.workingRepos.get(install.target.workingRepoId);
-    if (!wr) throw new AppError("working_repo_not_found", install.target.workingRepoId);
-    const agent = deps.registries.agents.get(install.agent);
-    const others = (await deps.installs.listByWorkingRepo(wr.id)).filter((i) => i.id !== install.id);
-    const patch = await applyUpdate({
-      install, skillsRepo: sr, workingRepo: wr,
-      newSha: install.installedCommitSha, agent,
-      otherInstallsInTarget: others,
-    });
-    const updated = await deps.installs.update(install.id, patch);
-    deps.activityLog.add({
-      ts: new Date().toISOString(),
-      category: "re-apply",
-      summary: `Re-applied '${artifactDisplayName(install.artifactKey)}' in '${wr.name}'`,
-      artifactKey: install.artifactKey,
-      workingRepoId: wr.id,
-      sourceRepoId: install.sourceRepoId,
-    }).catch(() => {});
-    return updated;
+  app.post<{ Params: { id: string } }>("/api/installs/:id/reapply", async (req) => {
+    const { install } = await reapplyInstall(deps, { installId: req.params.id, force: true });
+    return install;
   });
 
   app.get<{ Querystring: { artifactKey?: string } }>("/api/installs", async (req, reply) => {
@@ -219,30 +116,7 @@ export async function registerInstallsRoutes(app: FastifyInstance, deps: ServerD
   });
 
   app.delete<{ Params: { id: string } }>("/api/installs/:id", async (req, reply) => {
-    const install = await deps.installs.get(req.params.id);
-    if (!install) return reply.code(404).send({ code: "install_not_found" });
-    let workingRepo;
-    let remaining: Awaited<ReturnType<typeof deps.installs.list>> = [];
-    if (install.target.type === "working-repo") {
-      workingRepo = await deps.workingRepos.get(install.target.workingRepoId);
-      remaining = (await deps.installs.listByWorkingRepo(install.target.workingRepoId)).filter(
-        (i) => i.id !== install.id,
-      );
-    }
-    try {
-      await uninstallArtifact({ install, workingRepo, remainingInstallsInTarget: remaining });
-    } finally {
-      await deps.installs.remove(install.id);
-    }
-    const wrName = workingRepo ? `'${workingRepo.name}'` : "global";
-    deps.activityLog.add({
-      ts: new Date().toISOString(),
-      category: "uninstall",
-      summary: `Uninstalled '${artifactDisplayName(install.artifactKey)}' from ${wrName}`,
-      artifactKey: install.artifactKey,
-      workingRepoId: install.target.type === "working-repo" ? install.target.workingRepoId : undefined,
-      sourceRepoId: install.sourceRepoId,
-    }).catch(() => {});
+    await removeInstall(deps, { installId: req.params.id, force: true });
     return reply.code(204).send();
   });
 }

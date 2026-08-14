@@ -19,6 +19,7 @@
   "dependencies": {
     "@fastify/static": "^7.0.4",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "diff": "^5.2.2",
     "env-paths": "^3.0.0",
     "fastify": "^4.28.0",
     "open": "^10.1.0",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@types/diff": "^5.2.3",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",

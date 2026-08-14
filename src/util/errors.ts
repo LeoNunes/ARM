@@ -6,11 +6,17 @@ export type AppErrorCode =
   | "unsupported_combination"
   | "already_installed"
   | "agent_not_specified"
+  | "drift_detected"
+  | "no_update_available"
   | "bad_input"
   | "io_error";
 
 export class AppError extends Error {
-  constructor(public code: AppErrorCode, message: string) {
+  constructor(
+    public code: AppErrorCode,
+    message: string,
+    public details?: unknown,
+  ) {
     super(message);
     this.name = "AppError";
   }

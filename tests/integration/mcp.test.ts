@@ -16,6 +16,7 @@ import { buildFixtureRepo } from "../helpers/build-fixture-repo.ts";
 import { GitClient } from "../../src/git/client.ts";
 import { simpleGit } from "simple-git";
 import path from "node:path";
+import { readFile, writeFile } from "node:fs/promises";
 import type { ServerDeps } from "../../src/server.ts";
 import type { WorkingRepo } from "../../src/state/schema.ts";
 import { createMcpServer } from "../../src/mcp/tools.ts";
@@ -615,5 +616,438 @@ describe("MCP HTTP transport", () => {
     } finally {
       await app.close();
     }
+  });
+});
+
+// ─── install lifecycle: get_install_diff / update / reapply / uninstall ──────
+
+/**
+ * Two commits touching the same skill, cloned in full but installed at the first,
+ * so the install starts out with an update available.
+ */
+async function seedLifecycle(deps: ServerDeps, opts: { atHead?: boolean } = {}) {
+  const fx = await buildFixtureRepo([
+    { message: "v1", files: { "ai/skills/foo/SKILL.md": "# Foo\nversion one\n" } },
+    { message: "v2", files: { "ai/skills/foo/SKILL.md": "# Foo\nversion two\n" } },
+  ]);
+  const cloneDest = path.join(await tmpDir(), "clone");
+  await new GitClient().clone(fx.fileUrl, cloneDest, "main");
+  const repo = await deps.skillsRepos.add({
+    name: "src", gitUrl: fx.fileUrl, branch: "main",
+    artifactPaths: { skills: ["ai/skills"] }, presetId: null,
+    localClonePath: cloneDest, lastFetchedAt: null,
+  });
+  const wr = await makeWorkingRepo();
+  const savedWr = await deps.workingRepos.add({ name: wr.name, path: wr.path, addedAt: wr.addedAt });
+
+  const { agents, types } = deps.registries;
+  const { discoverArtifacts } = await import("../../src/discovery/discover.ts");
+  const { installArtifact } = await import("../../src/engine/install.ts");
+  const artifacts = await discoverArtifacts(repo, types);
+  const foo = artifacts.find((a) => a.name === "foo")!;
+  const record = await installArtifact({
+    artifact: foo, skillsRepo: repo,
+    target: { type: "working-repo", workingRepoId: savedWr.id },
+    workingRepo: savedWr, agent: agents.get("claude-code"),
+    sha: (opts.atHead ? fx.shas[1] : fx.shas[0])!,
+    autoUpdate: false, existingInstallsInTarget: [],
+  });
+  const install = await deps.installs.add(record);
+  return { fx, repo, wr: savedWr, install };
+}
+
+/** Absolute path of the single installed file, for simulating local edits. */
+function installedFileAbs(wr: WorkingRepo, install: { installedFiles: Array<{ targetPath: string }> }) {
+  return path.join(wr.path, install.installedFiles[0]!.targetPath);
+}
+
+describe("MCP get_install_diff", () => {
+  it("returns the local edits as a unified diff in installed-vs-drifted mode", async () => {
+    const deps = await makeDeps();
+    const { wr, install } = await seedLifecycle(deps);
+    await writeFile(installedFileAbs(wr, install), "# Foo\nhand edited\n", "utf8");
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "get_install_diff",
+      arguments: { installId: install.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const body = parseResult(result);
+    expect(body.hasDifferences).toBe(true);
+    expect(body.diff).toContain("-version one");
+    expect(body.diff).toContain("+hand edited");
+  });
+
+  it("reports no differences when the install is clean", async () => {
+    const deps = await makeDeps();
+    const { install } = await seedLifecycle(deps);
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "get_install_diff",
+      arguments: { installId: install.id },
+    });
+
+    const body = parseResult(result);
+    expect(body.hasDifferences).toBe(false);
+    expect(body.diff).toBe("");
+  });
+
+  it("shows what an update would change in installed-vs-latest mode", async () => {
+    const deps = await makeDeps();
+    const { install } = await seedLifecycle(deps);
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "get_install_diff",
+      arguments: { installId: install.id, mode: "installed-vs-latest" },
+    });
+
+    const body = parseResult(result);
+    expect(body.hasDifferences).toBe(true);
+    expect(body.diff).toContain("-version one");
+    expect(body.diff).toContain("+version two");
+  });
+
+  it("returns install_not_found for an unknown installId", async () => {
+    const deps = await makeDeps();
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "get_install_diff",
+      arguments: { installId: "nope" },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(parseResult(result).code).toBe("install_not_found");
+  });
+});
+
+describe("MCP update_install", () => {
+  it("advances a clean install to the newest SHA", async () => {
+    const deps = await makeDeps();
+    const { fx, wr, install } = await seedLifecycle(deps);
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "update_install",
+      arguments: { installId: install.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(parseResult(result).installedCommitSha).toBe(fx.shas[1]);
+    expect(await readFile(installedFileAbs(wr, install), "utf8")).toContain("version two");
+  });
+
+  it("returns no_update_available when already at the newest SHA", async () => {
+    const deps = await makeDeps();
+    const { install } = await seedLifecycle(deps, { atHead: true });
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "update_install",
+      arguments: { installId: install.id },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(parseResult(result).code).toBe("no_update_available");
+  });
+
+  it("refuses to overwrite local edits and names the drifted files", async () => {
+    const deps = await makeDeps();
+    const { wr, install } = await seedLifecycle(deps);
+    const edited = installedFileAbs(wr, install);
+    await writeFile(edited, "# Foo\nmy own edit\n", "utf8");
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "update_install",
+      arguments: { installId: install.id },
+    });
+
+    expect(result.isError).toBe(true);
+    const body = parseResult(result);
+    expect(body.code).toBe("drift_detected");
+    expect(body.details.driftedFiles).toContain(install.installedFiles[0]!.targetPath);
+    expect(body.details.hint).toContain("get_install_diff");
+    // the user's edit must survive a refusal
+    expect(await readFile(edited, "utf8")).toBe("# Foo\nmy own edit\n");
+  });
+
+  it("overwrites local edits when force is true", async () => {
+    const deps = await makeDeps();
+    const { fx, wr, install } = await seedLifecycle(deps);
+    await writeFile(installedFileAbs(wr, install), "# Foo\nmy own edit\n", "utf8");
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "update_install",
+      arguments: { installId: install.id, force: true },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(parseResult(result).installedCommitSha).toBe(fx.shas[1]);
+    expect(await readFile(installedFileAbs(wr, install), "utf8")).toContain("version two");
+  });
+
+  it("records the update in the activity log", async () => {
+    const deps = await makeDeps();
+    const { install } = await seedLifecycle(deps);
+    const { client } = await makeMcpClient(deps);
+
+    await client.callTool({ name: "update_install", arguments: { installId: install.id } });
+
+    const entries = await deps.activityLog.list();
+    expect(entries.some((e) => e.summary.startsWith("Updated") && e.artifactKey === install.artifactKey)).toBe(true);
+  });
+
+  it("returns bad_input for a global-target install", async () => {
+    const deps = await makeDeps();
+    const { repo } = await seedLifecycle(deps);
+    // Record-only: a real global install would write into the user's home directory.
+    const globalInstall = await deps.installs.add({
+      artifactKey: `${repo.id}:ai/skills/foo`, sourceRepoId: repo.id,
+      target: { type: "global" }, agent: "claude-code", artifactType: "skills",
+      installedCommitSha: "deadbee", autoUpdate: false, installedFiles: [],
+      installedAt: new Date().toISOString(),
+    });
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "update_install",
+      arguments: { installId: globalInstall.id },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(parseResult(result).code).toBe("bad_input");
+  });
+
+  it("returns install_not_found for an unknown installId", async () => {
+    const deps = await makeDeps();
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "update_install",
+      arguments: { installId: "nope" },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(parseResult(result).code).toBe("install_not_found");
+  });
+});
+
+describe("MCP reapply_install", () => {
+  it("restores the installed version when forced, discarding local edits", async () => {
+    const deps = await makeDeps();
+    const { wr, install } = await seedLifecycle(deps);
+    const edited = installedFileAbs(wr, install);
+    await writeFile(edited, "# Foo\nmy own edit\n", "utf8");
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "reapply_install",
+      arguments: { installId: install.id, force: true },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(await readFile(edited, "utf8")).toBe("# Foo\nversion one\n");
+  });
+
+  it("refuses to discard local edits without force", async () => {
+    const deps = await makeDeps();
+    const { wr, install } = await seedLifecycle(deps);
+    const edited = installedFileAbs(wr, install);
+    await writeFile(edited, "# Foo\nmy own edit\n", "utf8");
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "reapply_install",
+      arguments: { installId: install.id },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(parseResult(result).code).toBe("drift_detected");
+    expect(await readFile(edited, "utf8")).toBe("# Foo\nmy own edit\n");
+  });
+
+  it("does not require force when the install is clean", async () => {
+    const deps = await makeDeps();
+    const { wr, install } = await seedLifecycle(deps);
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "reapply_install",
+      arguments: { installId: install.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(await readFile(installedFileAbs(wr, install), "utf8")).toBe("# Foo\nversion one\n");
+  });
+
+  it("keeps the install pinned to its original SHA rather than updating it", async () => {
+    const deps = await makeDeps();
+    const { fx, install } = await seedLifecycle(deps);
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "reapply_install",
+      arguments: { installId: install.id },
+    });
+
+    expect(parseResult(result).installedCommitSha).toBe(fx.shas[0]);
+  });
+
+  it("records the re-apply in the activity log", async () => {
+    const deps = await makeDeps();
+    const { install } = await seedLifecycle(deps);
+    const { client } = await makeMcpClient(deps);
+
+    await client.callTool({ name: "reapply_install", arguments: { installId: install.id } });
+
+    const entries = await deps.activityLog.list();
+    expect(entries.some((e) => e.category === "re-apply" && e.artifactKey === install.artifactKey)).toBe(true);
+  });
+
+  it("returns install_not_found for an unknown installId", async () => {
+    const deps = await makeDeps();
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "reapply_install",
+      arguments: { installId: "nope" },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(parseResult(result).code).toBe("install_not_found");
+  });
+});
+
+describe("MCP uninstall_artifact", () => {
+  it("removes the installed files and the install record", async () => {
+    const deps = await makeDeps();
+    const { wr, install } = await seedLifecycle(deps);
+    const installedPath = installedFileAbs(wr, install);
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "uninstall_artifact",
+      arguments: { installId: install.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(await deps.installs.get(install.id)).toBeUndefined();
+    await expect(readFile(installedPath, "utf8")).rejects.toThrow();
+  });
+
+  it("refuses to delete files with local edits and leaves them on disk", async () => {
+    const deps = await makeDeps();
+    const { wr, install } = await seedLifecycle(deps);
+    const edited = installedFileAbs(wr, install);
+    await writeFile(edited, "# Foo\nmy own edit\n", "utf8");
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "uninstall_artifact",
+      arguments: { installId: install.id },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(parseResult(result).code).toBe("drift_detected");
+    expect(await readFile(edited, "utf8")).toBe("# Foo\nmy own edit\n");
+    expect(await deps.installs.get(install.id)).toBeDefined();
+  });
+
+  it("deletes edited files when force is true", async () => {
+    const deps = await makeDeps();
+    const { wr, install } = await seedLifecycle(deps);
+    const edited = installedFileAbs(wr, install);
+    await writeFile(edited, "# Foo\nmy own edit\n", "utf8");
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "uninstall_artifact",
+      arguments: { installId: install.id, force: true },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(await deps.installs.get(install.id)).toBeUndefined();
+    await expect(readFile(edited, "utf8")).rejects.toThrow();
+  });
+
+  it("records the uninstall in the activity log", async () => {
+    const deps = await makeDeps();
+    const { install } = await seedLifecycle(deps);
+    const { client } = await makeMcpClient(deps);
+
+    await client.callTool({ name: "uninstall_artifact", arguments: { installId: install.id } });
+
+    const entries = await deps.activityLog.list();
+    expect(entries.some((e) => e.category === "uninstall" && e.artifactKey === install.artifactKey)).toBe(true);
+  });
+
+  it("removes a global install without a drift gate", async () => {
+    const deps = await makeDeps();
+    const { repo } = await seedLifecycle(deps);
+    const globalInstall = await deps.installs.add({
+      artifactKey: `${repo.id}:ai/skills/foo`, sourceRepoId: repo.id,
+      target: { type: "global" }, agent: "claude-code", artifactType: "skills",
+      installedCommitSha: "deadbee", autoUpdate: false, installedFiles: [],
+      installedAt: new Date().toISOString(),
+    });
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "uninstall_artifact",
+      arguments: { installId: globalInstall.id },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(await deps.installs.get(globalInstall.id)).toBeUndefined();
+  });
+
+  it("returns install_not_found for an unknown installId", async () => {
+    const deps = await makeDeps();
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "uninstall_artifact",
+      arguments: { installId: "nope" },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(parseResult(result).code).toBe("install_not_found");
+  });
+});
+
+describe("MCP install_artifact activity logging", () => {
+  it("records an agent-driven install in the activity log", async () => {
+    const deps = await makeDeps();
+    const fx = await buildFixtureRepo([
+      { message: "init", files: { "ai/skills/foo/SKILL.md": "# Foo\n" } },
+    ]);
+    const cloneDest = path.join(await tmpDir(), "clone");
+    await new GitClient().clone(fx.fileUrl, cloneDest, "main");
+    const repo = await deps.skillsRepos.add({
+      name: "src", gitUrl: fx.fileUrl, branch: "main",
+      artifactPaths: { skills: ["ai/skills"] }, presetId: null,
+      localClonePath: cloneDest, lastFetchedAt: null,
+    });
+    const wr = await makeWorkingRepo();
+    const savedWr = await deps.workingRepos.add({ name: wr.name, path: wr.path, addedAt: wr.addedAt });
+    const { client } = await makeMcpClient(deps);
+
+    const result = await client.callTool({
+      name: "install_artifact",
+      arguments: {
+        artifactKey: `${repo.id}:ai/skills/foo`,
+        target: { type: "working-repo", workingRepoId: savedWr.id },
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const entries = await deps.activityLog.list();
+    expect(entries.some((e) => e.category === "install" && e.artifactKey === `${repo.id}:ai/skills/foo`)).toBe(true);
   });
 });

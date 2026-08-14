@@ -302,7 +302,7 @@ describe("API /installs — status, PATCH auto-update, POST update", () => {
     })).json();
     const res2 = await app2.inject({ method: "POST", url: `/api/installs/${inst2.id}/update` });
     expect(res2.statusCode).toBe(400);
-    expect(res2.json().code).toBe("bad_input");
+    expect(res2.json().code).toBe("no_update_available");
   });
 });
 

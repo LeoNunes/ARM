@@ -13,12 +13,25 @@ import { computeInstallStatus } from "../engine/status.js";
 import { installArtifact } from "../engine/install.js";
 import { AppError } from "../util/errors.js";
 import type { AgentId, InstallTarget } from "../state/schema.js";
+import { buildInstallDiff } from "../services/install-diff.js";
+import { createInstall, updateInstall, reapplyInstall, removeInstall } from "../services/install-ops.js";
 
-function toolError(code: string, message: string) {
+function toolError(code: string, message: string, details?: unknown) {
   return {
-    content: [{ type: "text" as const, text: JSON.stringify({ code, message }) }],
+    content: [
+      {
+        type: "text" as const,
+        text: JSON.stringify(details === undefined ? { code, message } : { code, message, details }),
+      },
+    ],
     isError: true as const,
   };
+}
+
+/** Every lifecycle tool reports AppErrors the same way, carrying `details` when present. */
+function appErrorToToolError(err: unknown) {
+  if (err instanceof AppError) return toolError(err.code, err.message, err.details);
+  throw err;
 }
 
 async function discoverAll(deps: ServerDeps): Promise<DiscoveredArtifact[]> {
@@ -189,7 +202,7 @@ export function createMcpServer(deps: ServerDeps): McpServer {
 
   server.tool(
     "install_artifact",
-    "Install an artifact into a target (create-only). Agent defaults to favoriteAgent.",
+    "Install an artifact into a target (create-only; use update_install to move an existing install to a newer version). Agent defaults to favoriteAgent.",
     {
       artifactKey: z.string(),
       target: z.object({
@@ -201,67 +214,95 @@ export function createMcpServer(deps: ServerDeps): McpServer {
       autoUpdate: z.boolean().optional(),
     },
     async ({ artifactKey, target, agent: agentParam, sha, autoUpdate }) => {
+      if (target.type === "working-repo" && !target.workingRepoId) {
+        return toolError("bad_input", "workingRepoId required for working-repo target");
+      }
+      const installTarget: InstallTarget =
+        target.type === "working-repo"
+          ? { type: "working-repo", workingRepoId: target.workingRepoId! }
+          : { type: "global" };
       try {
-        const settings = await deps.settings.read();
-        const agentId = (agentParam ?? settings.favoriteAgent) as AgentId | undefined;
-        if (!agentId) {
-          return toolError("agent_not_specified", "No agent specified and no favoriteAgent configured");
-        }
-
-        let agent;
-        try {
-          agent = deps.registries.agents.get(agentId);
-        } catch {
-          return toolError("bad_input", `unknown agent: ${agentId}`);
-        }
-
-        if (target.type === "working-repo" && !target.workingRepoId) {
-          return toolError("bad_input", "workingRepoId required for working-repo target");
-        }
-
-        const installTarget: InstallTarget =
-          target.type === "working-repo"
-            ? { type: "working-repo", workingRepoId: target.workingRepoId! }
-            : { type: "global" };
-
-        const sources = await deps.skillsRepos.list();
-        const [sourceRepoId] = artifactKey.split(":", 1);
-        const skillsRepo = sources.find((s) => s.id === sourceRepoId);
-        if (!skillsRepo) {
-          return toolError("artifact_not_found", `source repo not found: ${sourceRepoId}`);
-        }
-
-        const allArtifacts = await discoverArtifacts(skillsRepo, deps.registries.types);
-        const artifact = allArtifacts.find((a) => a.artifactKey === artifactKey);
-        if (!artifact) return toolError("artifact_not_found", artifactKey);
-
-        let workingRepo;
-        if (installTarget.type === "working-repo") {
-          workingRepo = await deps.workingRepos.get(installTarget.workingRepoId);
-          if (!workingRepo) return toolError("working_repo_not_found", installTarget.workingRepoId);
-        }
-
-        const existing = await deps.installs.findExisting(artifactKey, installTarget, agentId);
-        if (existing) {
-          return toolError("already_installed", `${artifactKey} already installed for ${agentId}`);
-        }
-
-        const targetInstalls = workingRepo
-          ? await deps.installs.listByWorkingRepo(workingRepo.id)
-          : [];
-        const resolvedSha = sha ?? artifact.lastTouchedSha;
-        if (!resolvedSha) return toolError("bad_input", "could not resolve SHA for artifact");
-
-        const record = await installArtifact({
-          artifact, skillsRepo, target: installTarget, workingRepo, agent,
-          sha: resolvedSha, autoUpdate: autoUpdate ?? false,
-          existingInstallsInTarget: targetInstalls,
+        const persisted = await createInstall(deps, {
+          artifactKey,
+          target: installTarget,
+          agent: agentParam as AgentId | undefined,
+          sha,
+          autoUpdate,
         });
-        const persisted = await deps.installs.add(record);
         return { content: [{ type: "text" as const, text: JSON.stringify(persisted) }] };
       } catch (err) {
-        if (err instanceof AppError) return toolError(err.code, err.message);
-        throw err;
+        return appErrorToToolError(err);
+      }
+    },
+  );
+
+  server.tool(
+    "update_install",
+    "Update an install to the newest available version. Refuses with drift_detected if the installed files have local edits; pass force to discard them.",
+    {
+      installId: z.string(),
+      force: z.boolean().optional().describe("Discard local edits and update anyway"),
+    },
+    async ({ installId, force }) => {
+      try {
+        const { install } = await updateInstall(deps, { installId, force });
+        return { content: [{ type: "text" as const, text: JSON.stringify(install) }] };
+      } catch (err) {
+        return appErrorToToolError(err);
+      }
+    },
+  );
+
+  server.tool(
+    "reapply_install",
+    "Re-apply an install at its current version, restoring the installed files from the source. Refuses with drift_detected if that would discard local edits; pass force to proceed.",
+    {
+      installId: z.string(),
+      force: z.boolean().optional().describe("Discard local edits and re-apply anyway"),
+    },
+    async ({ installId, force }) => {
+      try {
+        const { install } = await reapplyInstall(deps, { installId, force });
+        return { content: [{ type: "text" as const, text: JSON.stringify(install) }] };
+      } catch (err) {
+        return appErrorToToolError(err);
+      }
+    },
+  );
+
+  server.tool(
+    "uninstall_artifact",
+    "Remove an install: delete its installed files and forget the record. Refuses with drift_detected if the files have local edits; pass force to delete them anyway.",
+    {
+      installId: z.string(),
+      force: z.boolean().optional().describe("Delete the files even if they have local edits"),
+    },
+    async ({ installId, force }) => {
+      try {
+        await removeInstall(deps, { installId, force });
+        return { content: [{ type: "text" as const, text: JSON.stringify({ removed: installId }) }] };
+      } catch (err) {
+        return appErrorToToolError(err);
+      }
+    },
+  );
+
+  server.tool(
+    "get_install_diff",
+    "Show an install's differences as unified diff text: local edits (installed-vs-drifted, default) or what an update would change (installed-vs-latest)",
+    {
+      installId: z.string(),
+      mode: z
+        .enum(["installed-vs-drifted", "installed-vs-latest"])
+        .optional()
+        .describe("Defaults to installed-vs-drifted"),
+    },
+    async ({ installId, mode }) => {
+      try {
+        const result = await buildInstallDiff(deps, { installId, mode });
+        return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
+      } catch (err) {
+        return appErrorToToolError(err);
       }
     },
   );

@@ -288,7 +288,7 @@ Notes:
 
 The Settings → MCP panel renders a copy-ready config snippet per supported agent (Claude Code, Cursor). The user pastes the snippet into their agent's MCP config once.
 
-### Tools (MVP)
+### Tools
 
 | Tool                          | Dir.  | Purpose                                                                       |
 |-------------------------------|-------|-------------------------------------------------------------------------------|
@@ -298,9 +298,19 @@ The Settings → MCP panel renders a copy-ready config snippet per supported age
 | `get_artifact`                | read  | Metadata + file list + version history (no contents)                          |
 | `read_artifact_file`          | read  | One file's content at a specific SHA                                          |
 | `list_installs`               | read  | Current installs with status; filters: `workingRepoId?`, `agent?`, `type?`    |
-| `install_artifact`            | write | Create-only install; respects matrix + favorite-agent default + drift gate    |
+| `get_install_diff`            | read  | Unified diff of an install: `installed-vs-drifted` (default) or `installed-vs-latest` |
+| `install_artifact`            | write | Create-only install; respects matrix + favorite-agent default                 |
+| `update_install`              | write | Move an install to the newest available SHA                                   |
+| `reapply_install`             | write | Rewrite an install's files at its current SHA (the discard-drift path)        |
+| `uninstall_artifact`          | write | Delete an install's files and forget the record                               |
 
-`install_artifact` defaults the `agent` parameter to `settings.favoriteAgent` when omitted. Errors `agent_not_specified` if both are missing. Errors `already_installed` if an install already exists for the same `(artifactKey, target, agent)` triple — so a global Claude Code install and a global Cursor install of the same artifact can coexist (no `force` in MVP — users re-apply via the UI).
+`install_artifact` defaults the `agent` parameter to `settings.favoriteAgent` when omitted. Errors `agent_not_specified` if both are missing. Errors `already_installed` if an install already exists for the same `(artifactKey, target, agent)` triple — so a global Claude Code install and a global Cursor install of the same artifact can coexist. To move an existing install to a newer version, use `update_install`.
+
+#### The drift gate
+
+`update_install`, `reapply_install`, and `uninstall_artifact` each refuse with `drift_detected` when the installed files carry local edits, rather than destroying them on an agent's behalf. The error's `details` carries `driftedFiles` (target-relative paths) and a hint pointing at `get_install_diff`; the caller opts in explicitly by retrying with `force: true`. `reapply_install` on a *clean* install rewrites identical bytes, so the gate only ever fires where something would actually be lost.
+
+The browser UI shows the user the drift diff before they act, so the HTTP routes pass `force` — the gate exists for non-interactive callers. `update_install` and `reapply_install` are working-repo-only (`bad_input` for global targets); `uninstall_artifact` accepts both, and global installs have no drift gate because there is no working-repo copy to compare.
 
 `search_artifacts` results are sorted favorited-artifacts-first (see §8); each result includes an `isFavorite` boolean. `get_artifact` also includes `isFavorite`. There is no MCP tool for marking/unmarking a favorite — favoriting artifacts is a manual UI action only (see §8).
 
@@ -308,17 +318,19 @@ The Settings → MCP panel renders a copy-ready config snippet per supported age
 
 Structured tool errors with stable codes:
 
-- `artifact_not_found`, `working_repo_not_found`
+- `artifact_not_found`, `working_repo_not_found`, `install_not_found`, `skills_repo_not_found`
 - `unsupported_combination` (matrix consulted)
 - `agent_not_specified`
 - `already_installed`
+- `drift_detected` (carries `details.driftedFiles` and a hint)
+- `no_update_available`
 - `bad_input` (schema validation, with offending field name)
 
-Each error includes a human-readable message.
+Each error includes a human-readable message, and may carry a structured `details` payload.
 
 ### Composition with the rest of the system
 
-All MCP tools route through the **same domain services** as the HTTP API (registries, engine, discovery). No parallel implementation.
+All MCP tools route through the **same domain services** as the HTTP API (registries, engine, discovery). No parallel implementation: the install lifecycle lives in `src/services/install-ops.ts`, which both `src/api/installs.ts` and `src/mcp/tools.ts` call, so the browser and an agent cannot drift apart in behavior. Engine functions stay pure and take explicit arguments; the service layer is the only place that reads stores and writes the activity log.
 
 ---
 
@@ -372,7 +384,7 @@ Footer: Close + the relevant primary action (Update / Re-apply / Discard).
 1. **Git failures.** Clone (auth/URL/network), fetch, missing-SHA (history rewrite upstream). Surfaced per skills-repo with a clear error state and a re-clone option. Operations against a missing SHA fail with "version not available; refresh source repo or pick a different version."
 2. **Non-git working repo.** Detected at registration and at install. Registration refuses; install surfaces inline.
 3. **Unsupported `(agent × type × scope)`.** Engine consults the adapter matrix. UI disables the option in selectors; MCP returns `unsupported_combination`.
-4. **Drift blocking auto-update.** A state, not an error. UI shows the row with two-button resolution. Background pass logs the skip and continues.
+4. **Drift blocking auto-update.** A state, not an error. UI shows the row with two-button resolution. Background pass logs the skip and continues. Drift additionally gates the agent-facing mutating tools, which return `drift_detected` until the caller passes `force` (see §5).
 5. **Concurrent install collisions.** MCP returns `already_installed`. UI offers Update/Uninstall instead of a new install when the pair is already taken.
 6. **Empty/missing per-type discovery paths.** Not an error. Shown as "0 artifacts found at this path" with the path printed.
 7. **File-write failures.** Roll back: delete any partially-written files, restore `.git/info/exclude` to pre-install content, do not write the install record. UI shows the OS error.
@@ -451,7 +463,7 @@ Tests focus on what's hardest to get right: filesystem behavior of installs, dri
    - Rollback on write failure: simulate write failure; assert no record, no leftover files, exclude block unchanged.
    - Favoriting: `PUT`/`DELETE /api/artifacts/:artifactKey/favorite` round-trip; `GET /api/artifacts` reflects favorites-first sort and `isFavorite` flags; 404 on unknown artifact.
 
-3. **MCP.** Each tool: valid call, `bad_input`, `unsupported_combination`, `already_installed`, `agent_not_specified`. Transport itself gets one happy-path test; SDK is trusted for the rest. `search_artifacts` additionally asserts favorites-first ordering and `isFavorite` on each result.
+3. **MCP.** Each tool: valid call, `bad_input`, `unsupported_combination`, `already_installed`, `agent_not_specified`, plus `install_not_found`, `no_update_available`, and `drift_detected` (refusal leaves files untouched; `force` proceeds) for the lifecycle tools. Transport itself gets one happy-path test; SDK is trusted for the rest. `search_artifacts` additionally asserts favorites-first ordering and `isFavorite` on each result.
 
 4. **Frontend.** Vitest + React Testing Library for components with logic: status-pill rendering for every install status, filter-chip behavior, install-modal defaults (favorite-agent pre-fill, target pre-fill), notification-dot computation, favorite-star toggle (filled/outline state, click calls the API and re-sorts) on Browse, Skills-repo detail, and Artifact detail. Purely structural components skipped.
 
@@ -471,7 +483,7 @@ Walking-skeleton approach (chosen during brainstorming). Each slice independentl
 
 - **Slice 1 — Walking skeleton.** Register skills repos (git URL + per-type paths) and working repos; browse; manual install end-to-end for a single agent. Establishes the data model, the adapter wiring, the install engine, the exclude-block mechanism, and the FE shell.
 - **Slice 2 — Updates and drift.** Per-artifact version tracking; update detection on fetch and refresh; drift detection; auto-update with drift gate; status pills, filter chips, "Needs attention" surfacing in the working-repo detail.
-- **Slice 3 — MCP server.** Streamable HTTP at `/mcp`. All seven tools. Settings panel snippets.
+- **Slice 3 — MCP server.** Streamable HTTP at `/mcp`. The seven read-and-install tools. Settings panel snippets. (The install-lifecycle tools in §5 landed later, post-MVP.)
 - **Slice 4 — Dashboard and diff polish.** Full dashboard (new-skill cards, working-repo cards with notification dots, skills-repo list), dismissible notifications, full-page diff view across version-vs-version / installed-vs-latest / installed-vs-drifted.
 
 ---
@@ -485,5 +497,4 @@ These are explicitly out of scope for the MVP build but the design accommodates 
 - **Additional agents** beyond Claude Code and Cursor. Each = one new agent adapter + its matrix entries.
 - **Stdio MCP shim** for agents lacking HTTP MCP transport.
 - **Background daemon / scheduled updates** while the app is closed.
-- **`force` parameter** on MCP `install_artifact` (or a separate `update_install` tool) for re-applying over drift.
 - **`list_installs` enhancements** (sort, pagination) if usage warrants.

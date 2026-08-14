@@ -135,7 +135,13 @@ The backend exposes a local Model Context Protocol server so AI agents can inter
 - `get_artifact` — retrieve artifact metadata, file list, version history, and favorited status.
 - `read_artifact_file` — read the content of a specific file within an artifact at a given SHA.
 - `list_installs` — list current installs with status, filterable by working repo, agent, and type.
+- `get_install_diff` — read an install's differences as a unified diff: either the local edits, or what an update would change.
 - `install_artifact` — install an artifact into a working repository or globally. Agent defaults to the favorite-agent setting.
+- `update_install` — move an install to the newest available version.
+- `reapply_install` — restore an install's files at its current version, discarding local edits.
+- `uninstall_artifact` — remove an install's files and its record.
+
+The three tools that overwrite or delete installed files refuse when the install is drifted, naming the drifted files so the agent can show the user what would be lost. The caller must retry with an explicit `force` to proceed. The UI has no such gate, because it shows the user the drift diff before they act.
 
 ### 4.11 Application settings
 

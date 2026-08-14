@@ -17,12 +17,20 @@ export async function registerRoutes(app: FastifyInstance, deps: ServerDeps): Pr
         err.code === "bad_input" ? 400 :
         err.code === "unsupported_combination" ? 409 :
         err.code === "already_installed" ? 409 :
+        err.code === "drift_detected" ? 409 :
+        // 400, not 409: preserves the pre-existing HTTP contract for this case,
+        // which used to be reported as a generic bad_input.
+        err.code === "no_update_available" ? 400 :
         err.code === "artifact_not_found" ? 404 :
         err.code === "working_repo_not_found" ? 404 :
         err.code === "install_not_found" ? 404 :
         err.code === "skills_repo_not_found" ? 404 :
         500;
-      return reply.code(status).send({ code: err.code, message: err.message });
+      return reply.code(status).send(
+        err.details === undefined
+          ? { code: err.code, message: err.message }
+          : { code: err.code, message: err.message, details: err.details },
+      );
     }
     return reply.code(500).send({ code: "internal", message: err.message });
   });
