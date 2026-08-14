@@ -37,7 +37,13 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
   registerMcpServer(app, deps);
   const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../web");
   if (existsSync(webRoot)) {
-    await app.register(fastifyStatic, { root: webRoot, prefix: "/", decorateReply: false });
+    await app.register(fastifyStatic, { root: webRoot, prefix: "/", decorateReply: true });
+    app.setNotFoundHandler((req, reply) => {
+      if (req.method === "GET" && !req.url.startsWith("/api/")) {
+        return reply.type("text/html").sendFile("index.html");
+      }
+      reply.code(404).send({ code: "not_found", message: "Not found" });
+    });
   }
   return app;
 }
